@@ -58,8 +58,9 @@ ALLOWED_IMPORTS = {
     # Sandbox tools (the main purpose of code execution)
     'log_store',
     'privacy',
-    'workspace',  # Persistent storage for checkpoints and state
-    'skills',     # Reusable code patterns
+    'workspace',       # Persistent storage for checkpoints and state
+    'skills',          # Reusable code patterns
+    'tool_discovery',  # Browse and discover available tools
 
     # Safe standard library modules
     'json',
@@ -211,11 +212,13 @@ def create_execution_globals(tools_path: str = None) -> Dict[str, Any]:
         import privacy
         import workspace
         import skills
+        import tool_discovery
 
         exec_globals['log_store'] = log_store
         exec_globals['privacy'] = privacy
         exec_globals['workspace'] = workspace
         exec_globals['skills'] = skills
+        exec_globals['tool_discovery'] = tool_discovery
 
     except ImportError as e:
         # Tools may not be available in all environments

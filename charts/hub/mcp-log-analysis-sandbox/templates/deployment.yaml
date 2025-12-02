@@ -205,6 +205,31 @@ spec:
                               else:
                                   result = {'error': 'run_skill not found'}
 
+                          elif tool_name == 'tool_discovery':
+                              # Tool discovery - multiple functions for browsing tools
+                              func_name = arguments.pop('function', 'list_available_tools')
+                              if hasattr(module, func_name):
+                                  func = getattr(module, func_name)
+                                  result = func(**arguments)
+                              else:
+                                  result = {'error': f"Function '{func_name}' not found in tool_discovery"}
+
+                          elif tool_name == 'list_available_tools':
+                              # Direct call to list_available_tools
+                              td_module = load_tool_module('tool_discovery')
+                              if td_module and hasattr(td_module, 'list_available_tools'):
+                                  result = td_module.list_available_tools()
+                              else:
+                                  result = {'error': 'list_available_tools not found'}
+
+                          elif tool_name == 'search_tools':
+                              # Direct call to search_tools
+                              td_module = load_tool_module('tool_discovery')
+                              if td_module and hasattr(td_module, 'search_tools'):
+                                  result = td_module.search_tools(**arguments)
+                              else:
+                                  result = {'error': 'search_tools not found'}
+
                           else:
                               # Generic tool execution - try to find main function
                               # Try: tool_name(), main(), or first public function
@@ -315,6 +340,22 @@ spec:
 
               # Start server
               try:
+                  # Initialize tool discovery stubs on startup
+                  try:
+                      td_module = load_tool_module('tool_discovery')
+                      if td_module and hasattr(td_module, 'initialize_on_startup'):
+                          init_result = td_module.initialize_on_startup()
+                          print(json.dumps({
+                              'type': 'tool_discovery_init',
+                              'success': init_result.get('success', False),
+                              'message': init_result.get('message', 'Unknown')
+                          }))
+                  except Exception as e:
+                      print(json.dumps({
+                          'type': 'tool_discovery_init_error',
+                          'error': str(e)
+                      }))
+
                   httpd = HTTPServer(('0.0.0.0', 8080), SandboxHandler)
                   print(f'MCP Sandbox listening on port 8080...')
                   print(f'Tools path: {tools_path}')

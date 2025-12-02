@@ -63,6 +63,12 @@ gateway:
           description: "List all available skills"
         - name: "run_skill"
           description: "Execute a saved skill by name"
+        - name: "tool_discovery"
+          description: "Generate and browse tool documentation stubs"
+        - name: "list_available_tools"
+          description: "List all available tool modules and functions"
+        - name: "search_tools"
+          description: "Search for tools by name or description"
 
     # Example 2: Cloudflare Tools (disabled by default - user implements)
     cloudflare:

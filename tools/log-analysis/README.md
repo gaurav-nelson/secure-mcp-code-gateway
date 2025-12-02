@@ -199,6 +199,69 @@ Each skill is stored in `/workspace/skills/{name}/` containing:
 - Skill names validated (alphanumeric + underscore only)
 - Skills can only import approved modules
 
+### `tool_discovery.py` - Browsable Tool Interface ⭐ NEW
+
+Implements the "Tool Discovery via Filesystem" pattern from Anthropic's blog. Tools are exposed as browsable files that AI agents can explore through the filesystem, enabling progressive disclosure of documentation.
+
+**Key Functions:**
+- `generate_tool_stubs()` - Generate tool stub files in /workspace/tools/
+- `refresh_tool_stubs()` - Regenerate stubs after tool updates
+- `list_available_tools()` - List all tool modules and functions
+- `get_tool_info(module_name)` - Get detailed module documentation
+- `search_tools(query)` - Search for tools by name/description
+
+**Generated Structure:**
+```
+/workspace/tools/
+├── index.py              # Overview of all tools
+├── log_store/
+│   ├── __init__.py       # Module overview with function list
+│   ├── search_logs.py    # Individual function documentation
+│   ├── get_error_summary.py
+│   └── tail_logs.py
+├── privacy/
+│   ├── __init__.py
+│   ├── scrub_all_pii.py
+│   └── ...
+├── workspace/
+│   └── ...
+└── skills/
+    └── ...
+```
+
+**Example Usage:**
+```python
+import tool_discovery
+import workspace
+
+# Generate tool stubs (done automatically on startup)
+tool_discovery.generate_tool_stubs()
+
+# AI discovers tools by browsing
+files = workspace.list_files("/workspace/tools")
+# ['index.py', 'log_store/', 'privacy/', 'workspace/', 'skills/']
+
+# Read specific function docs
+doc = workspace.read_file("/workspace/tools/log_store/search_logs.py")
+print(doc)  # Full function documentation
+
+# Search for relevant tools
+matches = tool_discovery.search_tools("email")
+# [{'module': 'privacy', 'name': 'scrub_emails', 'description': '...'}]
+```
+
+**Why this matters:**
+- AI discovers tools through filesystem navigation
+- Only needed documentation loaded into context
+- Progressive disclosure reduces token usage
+- Self-documenting tools with typed interfaces
+- Stubs generated automatically on startup
+
+**Security Features:**
+- Stubs are read-only documentation
+- Actual implementations run in sandbox
+- Generated from approved tools only
+
 ## Code Execution with State Persistence
 
 Combine `execute_code` with `workspace` for powerful long-running workflows:

@@ -26,3 +26,6 @@ data:
 
   skills.py: |
 {{- .Files.Get "tools/log-analysis/skills.py" | nindent 4 }}
+
+  tool_discovery.py: |
+{{- .Files.Get "tools/log-analysis/tool_discovery.py" | nindent 4 }}
