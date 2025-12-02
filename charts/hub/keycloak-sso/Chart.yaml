@@ -1,0 +1,13 @@
+apiVersion: v2
+name: keycloak-sso
+description: Deploys Red Hat SSO (Keycloak) for multi-tenant MCP server authentication
+keywords:
+- pattern
+- keycloak
+- sso
+- authentication
+- oauth
+type: application
+version: 0.1.0
+appVersion: "7.5"
+

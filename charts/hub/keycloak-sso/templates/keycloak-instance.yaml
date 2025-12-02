@@ -1,0 +1,14 @@
+apiVersion: keycloak.org/v1alpha1
+kind: Keycloak
+metadata:
+  name: mcp-keycloak
+  namespace: mcp-shared
+  labels:
+    app: mcp-keycloak
+spec:
+  instances: {{ .Values.keycloak.instances | default 1 }}
+  externalAccess:
+    enabled: true
+  # Note: RHSSO operator on OpenShift automatically creates routes
+  # No need for explicit ingress configuration
+

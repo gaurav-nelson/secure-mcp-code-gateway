@@ -1,0 +1,18 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ .Values.gateway.name | default "mcp-gateway" }}
+  namespace: {{ .Values.gateway.namespace | default "mcp-shared" }}
+  labels:
+    app: {{ .Values.gateway.name | default "mcp-gateway" }}
+    component: gateway
+spec:
+  type: {{ .Values.gateway.service.type | default "ClusterIP" }}
+  ports:
+    - port: {{ .Values.gateway.service.port | default 8080 }}
+      targetPort: {{ .Values.gateway.service.targetPort | default 8080 }}
+      protocol: TCP
+      name: http
+  selector:
+    app: {{ .Values.gateway.name | default "mcp-gateway" }}
+

@@ -1,0 +1,73 @@
+# Optimized values for Red Hat Developer Sandbox deployment
+# This configuration is designed for resource-constrained environments
+# where you cannot create new projects or install operators.
+#
+# Usage:
+#   Use your existing project (e.g., ganelson-dev)
+#   Deploy components manually or with Helm
+#   See docs/DEVELOPER-SANDBOX-GUIDE.md for step-by-step instructions
+
+clusterGroup:
+  name: hub
+  isHubCluster: true
+
+  # In Developer Sandbox, you use your assigned project
+  # You cannot create new namespaces
+  namespaces: []
+
+  # Developer Sandbox typically doesn't allow operator installation
+  # Use direct deployments instead
+  subscriptions: {}
+
+  argoProjects:
+    - hub
+    - mcp-shared
+    - mcp-log-analysis
+
+  applications:
+    # Note: In Developer Sandbox, deploy these manually
+    # The pattern (make install) may not work without operators
+
+    # Keycloak - deploy directly without operator
+    keycloak-sso:
+      name: keycloak-sso
+      namespace: openshift-gitops
+      argoProject: mcp-shared
+      path: charts/hub/keycloak-sso
+      # Enable direct deployment mode
+      values:
+        keycloak:
+          directDeploy: true
+          namespace: ganelson-dev  # Replace with your project name
+          # SECURITY WARNING: Change this immediately after deployment!
+          # This is only for testing in Developer Sandbox.
+          # For any shared or production environment, use a strong password.
+          adminPassword: "CHANGEME-please-set-strong-password"
+
+    # MCP Server components
+    mcp-log-analysis-gateway:
+      name: mcp-log-analysis-gateway
+      namespace: openshift-gitops
+      argoProject: mcp-log-analysis
+      path: charts/hub/mcp-log-analysis-gateway
+      values:
+        gateway:
+          namespace: ganelson-dev  # Replace with your project name
+          # Uses Python placeholder by default
+
+    mcp-log-analysis-sandbox:
+      name: mcp-log-analysis-sandbox
+      namespace: openshift-gitops
+      argoProject: mcp-log-analysis
+      path: charts/hub/mcp-log-analysis-sandbox
+      values:
+        sandbox:
+          namespace: ganelson-dev  # Replace with your project name
+
+# Developer Sandbox limitations and workarounds:
+# 1. Cannot create projects: Use your assigned project
+# 2. Cannot install operators: Use direct deployments
+# 3. Limited resources: Components configured with minimal requirements
+# 4. No cluster-admin: Some features may not work
+# 5. Temporary environment: Data is not persisted long-term
+

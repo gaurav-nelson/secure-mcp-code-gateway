@@ -1,0 +1,23 @@
+{{- if .Values.gateway.route.enabled }}
+apiVersion: route.openshift.io/v1
+kind: Route
+metadata:
+  name: {{ .Values.gateway.name | default "mcp-gateway" }}
+  namespace: {{ .Values.gateway.namespace | default "mcp-shared" }}
+  labels:
+    app: {{ .Values.gateway.name | default "mcp-gateway" }}
+    component: gateway
+spec:
+  {{- if .Values.gateway.route.host }}
+  host: {{ .Values.gateway.route.host }}
+  {{- end }}
+  to:
+    kind: Service
+    name: {{ .Values.gateway.name | default "mcp-gateway" }}
+  port:
+    targetPort: http
+  tls:
+    termination: {{ .Values.gateway.route.tls.termination | default "edge" }}
+    insecureEdgeTerminationPolicy: {{ .Values.gateway.route.tls.insecureEdgeTerminationPolicy | default "Redirect" }}
+{{- end }}
+

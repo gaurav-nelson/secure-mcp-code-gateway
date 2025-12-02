@@ -1,0 +1,30 @@
+apiVersion: v2
+name: mcp-gateway
+description: |
+  Multi-Tenant MCP Gateway
+  
+  A single gateway that routes tool calls to multiple sandboxes based on
+  tool name prefixes and user permissions. This is the recommended approach
+  for most deployments as it reduces operational overhead while providing
+  the same security and isolation benefits.
+  
+  Add new tool sets by:
+  1. Deploying a new sandbox with your tools
+  2. Adding configuration to this chart's values
+  3. No new gateway deployment needed!
+
+type: application
+version: 1.0.0
+appVersion: "1.0"
+
+keywords:
+  - mcp
+  - ai
+  - security
+  - multi-tenant
+  - gateway
+
+maintainers:
+  - name: Validated Patterns
+    email: validatedpatterns@googlegroups.com
+

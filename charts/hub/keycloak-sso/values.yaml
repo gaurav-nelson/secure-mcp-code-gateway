@@ -1,0 +1,36 @@
+---
+# Default values for keycloak-sso
+# This Keycloak instance is shared across all MCP servers
+
+global: {}
+
+keycloak:
+  instances: 1
+  image: registry.redhat.io/rh-sso-7/sso75-openshift-rhel8:latest
+  namespace: mcp-shared
+  
+  # Enable direct deployment for environments without operator support
+  # (e.g., Developer Sandbox). When enabled, uses keycloak-direct-deployment.yaml
+  # instead of keycloak-instance.yaml (operator-based)
+  directDeploy: false
+  # SECURITY WARNING: Change this password immediately after deployment!
+  # For production, generate a strong password: openssl rand -base64 32
+  adminPassword: "CHANGEME-please-set-strong-password"  # Only used when directDeploy: true
+  
+  realm:
+    name: mcp-realm
+    enabled: true
+    
+  # Multi-tenant gateway client configuration
+  # One client serves all tool sets / sandboxes
+  clients:
+    gateway:
+      clientId: mcp-gateway-client
+      # Secret will be generated via vault or provided in values-secret.yaml
+      secret: "PLACEHOLDER-UPDATE-IN-VALUES-SECRET"
+      redirectUris:
+        - "https://mcp-gateway-mcp-shared.apps.your-cluster.com/*"
+    
+    # Add additional clients only if you deploy separate gateways
+    # (advanced use case for strict isolation)
+

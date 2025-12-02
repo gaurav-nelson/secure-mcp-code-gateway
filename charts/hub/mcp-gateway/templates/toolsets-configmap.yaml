@@ -1,0 +1,25 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: {{ .Values.gateway.name }}-toolsets
+  namespace: {{ .Values.gateway.namespace | default "mcp-shared" }}
+  labels:
+    app: {{ .Values.gateway.name | default "mcp-gateway" }}
+    component: configuration
+data:
+  toolsets.yaml: |
+    toolSets:
+    {{- range $name, $config := .Values.gateway.toolSets }}
+    {{- if $config.enabled }}
+      {{ $name }}:
+        description: {{ $config.description | quote }}
+        sandboxUrl: {{ $config.sandboxUrl | quote }}
+        requiredRole: {{ $config.requiredRole | quote }}
+        tools:
+        {{- range $config.tools }}
+          - name: {{ .name | quote }}
+            description: {{ .description | quote }}
+        {{- end }}
+    {{- end }}
+    {{- end }}
+

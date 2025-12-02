@@ -1,0 +1,64 @@
+{{- if .Values.sandbox.networkPolicy.enabled }}
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: {{ .Values.sandbox.name | default "mcp-log-analysis-sandbox" }}
+  namespace: {{ .Values.sandbox.namespace | default "mcp-log-analysis" }}
+  labels:
+    app: {{ .Values.sandbox.name | default "mcp-log-analysis-sandbox" }}
+spec:
+  podSelector:
+    matchLabels:
+      app: {{ .Values.sandbox.name | default "mcp-log-analysis-sandbox" }}
+  
+  policyTypes:
+    - Ingress
+    - Egress
+  
+  # Ingress: Allow from multi-tenant gateway (mcp-shared) and per-gateway (same namespace)
+  ingress:
+    {{- if .Values.sandbox.networkPolicy.allowFromGateway }}
+    # Allow from multi-tenant gateway in mcp-shared namespace
+    - from:
+        - namespaceSelector:
+            matchLabels:
+              kubernetes.io/metadata.name: mcp-shared
+          podSelector:
+            matchLabels:
+              app: mcp-gateway
+      ports:
+        - protocol: TCP
+          port: {{ .Values.sandbox.service.targetPort | default 8080 }}
+    # Allow from per-gateway in same namespace (optional)
+    - from:
+        - podSelector:
+            matchLabels:
+              app: {{ .Values.sandbox.name | replace "-sandbox" "-gateway" | default "mcp-log-analysis-gateway" }}
+      ports:
+        - protocol: TCP
+          port: {{ .Values.sandbox.service.targetPort | default 8080 }}
+    {{- end }}
+  
+  # Egress: Restricted - only DNS and specific services if needed
+  egress:
+    # Allow DNS resolution
+    - to:
+        - namespaceSelector:
+            matchLabels:
+              name: openshift-dns
+      ports:
+        - protocol: UDP
+          port: 53
+    
+    # Allow logging to OpenShift Logging (if needed)
+    - to:
+        - namespaceSelector:
+            matchLabels:
+              name: openshift-logging
+      ports:
+        - protocol: TCP
+          port: 9200
+    
+    # Block all other egress by default
+{{- end }}
+

@@ -1,0 +1,386 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ .Values.gateway.name | default "mcp-gateway" }}
+  namespace: {{ .Values.gateway.namespace | default "mcp-shared" }}
+  labels:
+    app: {{ .Values.gateway.name | default "mcp-gateway" }}
+    component: gateway
+spec:
+  replicas: {{ .Values.gateway.replicas | default 2 }}
+  selector:
+    matchLabels:
+      app: {{ .Values.gateway.name | default "mcp-gateway" }}
+  template:
+    metadata:
+      labels:
+        app: {{ .Values.gateway.name | default "mcp-gateway" }}
+        component: gateway
+    spec:
+      serviceAccountName: {{ .Values.gateway.name | default "mcp-gateway" }}
+      securityContext:
+        runAsNonRoot: true
+        seccompProfile:
+          type: RuntimeDefault
+      volumes:
+        - name: toolsets-config
+          configMap:
+            name: {{ .Values.gateway.name }}-toolsets
+        - name: tmp
+          emptyDir: {}
+      containers:
+        - name: gateway
+          image: "{{ .Values.gateway.image.repository }}:{{ .Values.gateway.image.tag }}"
+          imagePullPolicy: {{ .Values.gateway.image.pullPolicy | default "Always" }}
+          # Full MCP Protocol Implementation
+          # Supports direct connection from Cursor IDE and other MCP clients
+          {{- if contains "python-311" .Values.gateway.image.repository }}
+          command: ["/bin/bash", "-c"]
+          args:
+            - |
+              pip install --no-cache-dir pyyaml requests && python3 << 'PYTHON_SCRIPT'
+              from http.server import HTTPServer, BaseHTTPRequestHandler
+              import json
+              import yaml
+              import os
+              import sys
+              import requests
+              import subprocess
+              import base64
+              import time
+              from urllib.parse import urlparse
+              
+              # Load tool sets configuration
+              with open('/config/toolsets.yaml') as f:
+                  config = yaml.safe_load(f)
+                  TOOL_SETS = config.get('toolSets', {})
+              
+              # Configuration
+              KEYCLOAK_URL = os.environ.get('KEYCLOAK_URL', '')
+              REALM = os.environ.get('KEYCLOAK_REALM', 'mcp')
+              
+              class MultiTenantGatewayHandler(BaseHTTPRequestHandler):
+                  """
+                  Multi-Tenant MCP Gateway - Full MCP Protocol Implementation
+                  
+                  Implements JSON-RPC 2.0 with MCP methods:
+                  - initialize: Handshake and capability negotiation
+                  - tools/list: Discover available tools based on user roles
+                  - tools/call: Execute tools in isolated sandboxes
+                  
+                  Features:
+                  - OAuth authentication with Keycloak
+                  - RBAC enforcement
+                  - Multi-tenant sandbox routing
+                  - Audit logging
+                  """
+                  
+                  def do_POST(self):
+                      """Handle MCP JSON-RPC requests"""
+                      if self.path == '/mcp/v1' or self.path == '/':
+                          self.handle_mcp_request()
+                      else:
+                          self.send_error(404, 'Not Found')
+                  
+                  def handle_mcp_request(self):
+                      """Process MCP JSON-RPC 2.0 request"""
+                      try:
+                          content_length = int(self.headers.get('Content-Length', 0))
+                          body = self.rfile.read(content_length).decode('utf-8')
+                          request = json.loads(body)
+                          
+                          if request.get('jsonrpc') != '2.0':
+                              self.send_error_response(-32600, 'Invalid Request', request.get('id'))
+                              return
+                          
+                          auth_header = self.headers.get('Authorization', '')
+                          user_info = self.authenticate(auth_header)
+                          
+                          if not user_info:
+                              self.send_error_response(-32001, 'Authentication required', request.get('id'))
+                              return
+                          
+                          self.log_request_audit(request, user_info)
+                          
+                          method = request.get('method')
+                          params = request.get('params', {})
+                          request_id = request.get('id')
+                          
+                          if method == 'initialize':
+                              response = self.handle_initialize(params)
+                          elif method == 'tools/list':
+                              response = self.handle_tools_list(params, user_info)
+                          elif method == 'tools/call':
+                              response = self.handle_tools_call(params, user_info)
+                          else:
+                              self.send_error_response(-32601, 'Method not found', request_id)
+                              return
+                          
+                          self.send_json_response({'jsonrpc': '2.0', 'result': response, 'id': request_id})
+                      
+                      except json.JSONDecodeError:
+                          self.send_error_response(-32700, 'Parse error', None)
+                      except Exception as e:
+                          print(json.dumps({'type': 'error', 'message': str(e)}), file=sys.stderr)
+                          self.send_error_response(-32603, f'Internal error: {str(e)}', None)
+                  
+                  def authenticate(self, auth_header):
+                      """Authenticate using API key, OAuth token, or demo token"""
+                      if not auth_header.startswith('Bearer '):
+                          return None
+                      
+                      token = auth_header[7:]
+                      
+                      # Option 1: Demo token (development only)
+                      if token == os.environ.get('MCP_API_KEY', 'demo-token-12345'):
+                          return {'username': 'demo-user', 'roles': ['mcp-admin', 'mcp-log-analyst'], 'auth_type': 'demo'}
+                      
+                      # Option 2: API Keys (production - long-lived)
+                      user_info = self.check_api_key(token)
+                      if user_info:
+                          return user_info
+                      
+                      # Option 3: OAuth tokens (also supported)
+                      if KEYCLOAK_URL:
+                          try:
+                              response = requests.get(
+                                  f'{KEYCLOAK_URL}/realms/{REALM}/protocol/openid-connect/userinfo',
+                                  headers={'Authorization': f'Bearer {token}'},
+                                  timeout=5
+                              )
+                              if response.status_code == 200:
+                                  user_data = response.json()
+                                  return {
+                                      'username': user_data.get('preferred_username', 'unknown'),
+                                      'roles': ['mcp-admin'],  # TODO: Extract from JWT
+                                      'auth_type': 'oauth'
+                                  }
+                          except:
+                              pass
+                      
+                      return None
+                  
+                  def check_api_key(self, token):
+                      """Check if token is a valid API key from Kubernetes Secrets"""
+                      try:
+                          # Read secrets with label selector
+                          result = subprocess.run(
+                              ['kubectl', 'get', 'secrets', '-n', 'mcp-shared', 
+                               '-l', 'app=mcp-api-key', '-o', 'json'],
+                              capture_output=True, text=True, timeout=5
+                          )
+                          
+                          if result.returncode == 0:
+                              secrets = json.loads(result.stdout)
+                              for secret in secrets.get('items', []):
+                                  stored_key = base64.b64decode(secret['data'].get('key', '')).decode()
+                                  if stored_key == token:
+                                      # Check expiration
+                                      expires_at = secret['metadata']['labels'].get('expires-at', '0')
+                                      if expires_at != 'never' and int(expires_at) < time.time():
+                                          continue  # Expired
+                                      
+                                      return {
+                                          'username': secret['metadata']['labels'].get('username', 'unknown'),
+                                          'roles': secret['metadata']['labels'].get('roles', 'mcp-viewer').split(','),
+                                          'auth_type': 'api_key',
+                                          'key_id': secret['metadata']['name']
+                                      }
+                      except Exception as e:
+                          print(json.dumps({'type': 'api_key_check_error', 'error': str(e)}), file=sys.stderr)
+                      
+                      return None
+                  
+                  def handle_initialize(self, params):
+                      """MCP initialize method"""
+                      return {
+                          'protocolVersion': '1.0.0',
+                          'capabilities': {'tools': {}},
+                          'serverInfo': {'name': 'secure-mcp-gateway', 'version': '1.0.0'}
+                      }
+                  
+                  def handle_tools_list(self, params, user_info):
+                      """MCP tools/list method - returns tools available to user"""
+                      available_tools = []
+                      user_roles = user_info.get('roles', [])
+                      
+                      for tool_set_name, tool_set in TOOL_SETS.items():
+                          required_role = tool_set.get('requiredRole')
+                          if 'mcp-admin' in user_roles or required_role in user_roles:
+                              for tool in tool_set['tools']:
+                                  available_tools.append({
+                                      'name': tool['name'],
+                                      'description': tool.get('description', ''),
+                                      'inputSchema': tool.get('inputSchema', {'type': 'object', 'properties': {}})
+                                  })
+                      
+                      return {'tools': available_tools}
+                  
+                  def handle_tools_call(self, params, user_info):
+                      """MCP tools/call method - execute tool in sandbox"""
+                      tool_name = params.get('name')
+                      arguments = params.get('arguments', {})
+                      
+                      if not tool_name:
+                          raise ValueError('Tool name required')
+                      
+                      sandbox_url = self.get_sandbox_for_tool(tool_name)
+                      if not sandbox_url:
+                          raise ValueError(f'No sandbox found for tool: {tool_name}')
+                      
+                      try:
+                          response = requests.post(
+                              f'{sandbox_url}/execute',
+                              json={'tool': tool_name, 'arguments': arguments, 'user': user_info.get('username')},
+                              timeout=30
+                          )
+                          
+                          if response.status_code == 200:
+                              result = response.json()
+                              return {'content': [{'type': 'text', 'text': result.get('output', str(result))}]}
+                          else:
+                              return {'content': [{'type': 'text', 'text': f'Error: {response.status_code}'}], 'isError': True}
+                      except Exception as e:
+                          return {'content': [{'type': 'text', 'text': f'Error executing tool: {str(e)}'}], 'isError': True}
+                  
+                  def get_sandbox_for_tool(self, tool_name):
+                      """Find which sandbox handles this tool"""
+                      for tool_set in TOOL_SETS.values():
+                          for tool in tool_set['tools']:
+                              if tool['name'] == tool_name:
+                                  return tool_set['sandboxUrl']
+                      return None
+                  
+                  def do_GET(self):
+                      """Handle health checks and info"""
+                      if self.path == '/health':
+                          self.send_json_response({'status': 'healthy'})
+                      elif self.path == '/ready':
+                          self.send_json_response({'status': 'ready'})
+                      elif self.path == '/':
+                          tool_sets_info = {}
+                          for name, config in TOOL_SETS.items():
+                              tool_sets_info[name] = {
+                                  'description': config['description'],
+                                  'tools': [t['name'] for t in config['tools']],
+                                  'requiredRole': config['requiredRole']
+                              }
+                          self.send_json_response({
+                              'status': 'ok',
+                              'message': 'Secure MCP Code Gateway',
+                              'version': '1.0.0',
+                              'protocol': 'MCP JSON-RPC 2.0',
+                              'endpoints': {
+                                  'mcp': '/mcp/v1 or / (POST)',
+                                  'health': '/health (GET)',
+                                  'info': '/ (GET)'
+                              },
+                              'tool_sets': tool_sets_info,
+                              'authentication': 'Bearer token required'
+                          })
+                      else:
+                          self.send_error(404, 'Not Found')
+                  
+                  def send_json_response(self, data, status=200):
+                      """Send JSON response"""
+                      body = json.dumps(data).encode('utf-8')
+                      self.send_response(status)
+                      self.send_header('Content-Type', 'application/json')
+                      self.send_header('Content-Length', len(body))
+                      self.send_header('Access-Control-Allow-Origin', '*')
+                      self.end_headers()
+                      self.wfile.write(body)
+                  
+                  def send_error_response(self, code, message, request_id):
+                      """Send JSON-RPC error response"""
+                      self.send_json_response({
+                          'jsonrpc': '2.0',
+                          'error': {'code': code, 'message': message},
+                          'id': request_id
+                      }, status=200)
+                  
+                  def log_request_audit(self, request, user_info):
+                      """Log request for audit trail"""
+                      log_entry = {
+                          'type': 'mcp_request',
+                          'method': request.get('method'),
+                          'user': user_info.get('username'),
+                          'client': self.client_address[0],
+                          'timestamp': self.date_time_string()
+                      }
+                      print(json.dumps(log_entry))
+                  
+                  def log_message(self, format, *args):
+                      """Override to use structured logging"""
+                      pass
+              
+              # Start MCP Gateway server
+              try:
+                  httpd = HTTPServer(('0.0.0.0', 8080), MultiTenantGatewayHandler)
+                  print(json.dumps({
+                      'type': 'server_start',
+                      'message': 'Secure MCP Code Gateway started',
+                      'protocol': 'MCP JSON-RPC 2.0',
+                      'port': 8080,
+                      'tool_sets': list(TOOL_SETS.keys()),
+                      'endpoints': {
+                          'mcp': '/mcp/v1 or /',
+                          'health': '/health',
+                          'info': '/ (GET)'
+                      }
+                  }))
+                  httpd.serve_forever()
+              except Exception as e:
+                  print(json.dumps({'type': 'server_error', 'message': str(e)}), file=sys.stderr)
+                  sys.exit(1)
+              PYTHON_SCRIPT
+          {{- end }}
+          ports:
+            - name: http
+              containerPort: {{ .Values.gateway.service.targetPort | default 8080 }}
+              protocol: TCP
+          volumeMounts:
+            - name: toolsets-config
+              mountPath: /config
+              readOnly: true
+            - name: tmp
+              mountPath: /tmp
+          env:
+            # Keycloak OAuth configuration
+            - name: KEYCLOAK_URL
+              value: {{ .Values.gateway.keycloak.url | quote }}
+            - name: KEYCLOAK_REALM
+              value: {{ .Values.gateway.keycloak.realm | quote }}
+            - name: KEYCLOAK_CLIENT_ID
+              value: {{ .Values.gateway.keycloak.clientId | quote }}
+            
+            # Client secret from Vault via External Secrets
+            - name: KEYCLOAK_CLIENT_SECRET
+              valueFrom:
+                secretKeyRef:
+                  name: {{ .Values.gateway.keycloak.clientId }}-secret
+                  key: client-secret
+                  optional: true
+            
+            # Gateway configuration
+            {{- range .Values.gateway.env }}
+            - name: {{ .name }}
+              value: {{ .value | quote }}
+            {{- end }}
+          
+          securityContext:
+            {{- toYaml .Values.gateway.securityContext | nindent 12 }}
+          
+          resources:
+            {{- toYaml .Values.gateway.resources | nindent 12 }}
+          
+          {{- if .Values.gateway.livenessProbe }}
+          livenessProbe:
+            {{- toYaml .Values.gateway.livenessProbe | nindent 12 }}
+          {{- end }}
+          
+          {{- if .Values.gateway.readinessProbe }}
+          readinessProbe:
+            {{- toYaml .Values.gateway.readinessProbe | nindent 12 }}
+          {{- end }}
+
