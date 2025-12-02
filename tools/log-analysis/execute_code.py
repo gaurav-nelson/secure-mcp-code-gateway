@@ -59,6 +59,7 @@ ALLOWED_IMPORTS = {
     'log_store',
     'privacy',
     'workspace',  # Persistent storage for checkpoints and state
+    'skills',     # Reusable code patterns
 
     # Safe standard library modules
     'json',
@@ -209,10 +210,12 @@ def create_execution_globals(tools_path: str = None) -> Dict[str, Any]:
         import log_store
         import privacy
         import workspace
+        import skills
 
         exec_globals['log_store'] = log_store
         exec_globals['privacy'] = privacy
         exec_globals['workspace'] = workspace
+        exec_globals['skills'] = skills
 
     except ImportError as e:
         # Tools may not be available in all environments

@@ -180,6 +180,31 @@ spec:
                               else:
                                   result = {'error': 'get_workspace_info not found'}
 
+                          elif tool_name == 'skills':
+                              # Skills tool - multiple functions for reusable code patterns
+                              func_name = arguments.pop('function', 'list_skills')
+                              if hasattr(module, func_name):
+                                  func = getattr(module, func_name)
+                                  result = func(**arguments)
+                              else:
+                                  result = {'error': f"Function '{func_name}' not found in skills"}
+
+                          elif tool_name == 'list_skills':
+                              # Direct call to list_skills
+                              sk_module = load_tool_module('skills')
+                              if sk_module and hasattr(sk_module, 'list_skills'):
+                                  result = sk_module.list_skills()
+                              else:
+                                  result = {'error': 'list_skills not found'}
+
+                          elif tool_name == 'run_skill':
+                              # Direct call to run_skill
+                              sk_module = load_tool_module('skills')
+                              if sk_module and hasattr(sk_module, 'run_skill'):
+                                  result = sk_module.run_skill(**arguments)
+                              else:
+                                  result = {'error': 'run_skill not found'}
+
                           else:
                               # Generic tool execution - try to find main function
                               # Try: tool_name(), main(), or first public function

@@ -130,6 +130,75 @@ for log in safe_logs[:5]:
     print(log)
 ```
 
+### `skills.py` - Reusable Code Patterns ⭐ NEW
+
+Enables saving and reusing code patterns across sessions. AI agents can create "skills" - named code snippets that can be executed repeatedly, enabling learning and automation.
+
+**Key Functions:**
+- `save_skill(name, code, description, tags)` - Save a reusable skill
+- `list_skills()` - List all saved skills with metadata
+- `get_skill(name)` - Get skill code and documentation
+- `run_skill(name, **kwargs)` - Execute a skill with parameters
+- `delete_skill(name)` - Remove a skill
+- `update_skill(name, code, description, tags)` - Update existing skill
+- `search_skills(query)` - Search skills by name/tag/description
+
+**Example Usage:**
+```python
+import skills
+
+# Save a reusable analysis skill
+skills.save_skill(
+    name="analyze_errors",
+    code="""
+import log_store
+import privacy
+
+def run(service_name, hours=24):
+    '''Analyze errors for a service with PII scrubbing'''
+    errors = log_store.search_logs(service_name, "error", limit=100)
+    clean = [privacy.scrub_all_pii(e) for e in errors]
+    return {
+        "service": service_name,
+        "error_count": len(clean),
+        "sample": clean[:5]
+    }
+""",
+    description="Analyze service errors with automatic PII scrubbing",
+    tags=["analysis", "errors", "privacy"]
+)
+
+# List available skills
+available = skills.list_skills()
+print(f"Found {len(available)} skills")
+
+# Run a saved skill
+result = skills.run_skill("analyze_errors", service_name="payment-api", hours=12)
+print(f"Found {result['error_count']} errors")
+
+# Search for skills
+matches = skills.search_skills("privacy")
+print(f"Skills matching 'privacy': {[s['name'] for s in matches]}")
+```
+
+**Skill Structure:**
+Each skill is stored in `/workspace/skills/{name}/` containing:
+- `implementation.py` - The executable code
+- `SKILL.md` - Human-readable documentation
+- `metadata.json` - Name, description, tags, timestamps
+
+**Why this matters:**
+- AI learns and improves over time
+- Common patterns are captured and reusable
+- New users benefit from existing skills
+- Skills can be shared across teams
+
+**Security Features:**
+- Skills stored in workspace (PVC-backed)
+- All code runs through execute_code security
+- Skill names validated (alphanumeric + underscore only)
+- Skills can only import approved modules
+
 ## Code Execution with State Persistence
 
 Combine `execute_code` with `workspace` for powerful long-running workflows:

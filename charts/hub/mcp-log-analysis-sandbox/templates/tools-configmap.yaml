@@ -23,3 +23,6 @@ data:
 
   workspace.py: |
 {{- .Files.Get "tools/log-analysis/workspace.py" | nindent 4 }}
+
+  skills.py: |
+{{- .Files.Get "tools/log-analysis/skills.py" | nindent 4 }}

@@ -57,6 +57,12 @@ gateway:
           description: "Persistent file storage for saving checkpoints and intermediate results"
         - name: "get_workspace_info"
           description: "Get workspace usage info and limits"
+        - name: "skills"
+          description: "Save, list, and run reusable code patterns (skills)"
+        - name: "list_skills"
+          description: "List all available skills"
+        - name: "run_skill"
+          description: "Execute a saved skill by name"
 
     # Example 2: Cloudflare Tools (disabled by default - user implements)
     cloudflare:
