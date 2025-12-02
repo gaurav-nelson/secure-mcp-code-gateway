@@ -1,0 +1,135 @@
+---
+# Multi-Tenant MCP Gateway Configuration
+# This gateway routes to multiple sandboxes based on tool names
+
+global: {}
+
+gateway:
+  name: mcp-gateway
+  namespace: mcp-shared
+  replicas: 2  # Multiple replicas for high availability
+  
+  image:
+    # For testing/development: Python placeholder
+    # For production: Build your own multi-tenant gateway image
+    repository: registry.access.redhat.com/ubi9/python-311
+    tag: latest
+    pullPolicy: Always
+  
+  service:
+    port: 8080
+    targetPort: 8080
+    type: ClusterIP
+  
+  route:
+    enabled: true
+    host: ""  # Auto-generated based on cluster domain
+    tls:
+      termination: edge
+      insecureEdgeTerminationPolicy: Redirect
+  
+  # Keycloak OAuth configuration (shared authentication)
+  keycloak:
+    url: "https://mcp-keycloak-mcp-shared.apps.your-cluster.com"
+    realm: "mcp-realm"
+    clientId: "mcp-gateway-client"
+    # Client secret comes from vault via External Secrets
+  
+  # Tool Sets Configuration
+  # Each tool set routes to a different sandbox
+  toolSets:
+    # Example 1: Log Analysis Tools
+    log-analysis:
+      enabled: true
+      description: "Efficient log processing and analysis tools"
+      sandboxUrl: "http://mcp-log-analysis-sandbox.mcp-shared.svc.cluster.local:8080"
+      requiredRole: "mcp-log-analyst"
+      tools:
+        - name: "log_store"
+          description: "Search and analyze logs efficiently"
+        - name: "privacy"
+          description: "Scrub PII from text and logs"
+    
+    # Example 2: Cloudflare Tools (disabled by default - user implements)
+    cloudflare:
+      enabled: false
+      description: "Cloudflare API integration for observability and operations"
+      sandboxUrl: "http://mcp-cloudflare-sandbox.mcp-shared.svc.cluster.local:8080"
+      requiredRole: "mcp-cloudflare-user"
+      tools:
+        - name: "cloudflare_observability"
+          description: "Get Worker logs and analytics"
+        - name: "cloudflare_radar"
+          description: "Global Internet traffic insights"
+        - name: "cloudflare_workers"
+          description: "Manage and deploy Workers"
+    
+    # Example 3: Database Tools (disabled by default - user implements)
+    database:
+      enabled: false
+      description: "Database query and analysis tools"
+      sandboxUrl: "http://mcp-database-sandbox.mcp-shared.svc.cluster.local:8080"
+      requiredRole: "mcp-dba"
+      tools:
+        - name: "postgres_query"
+          description: "Execute SQL queries efficiently"
+        - name: "postgres_analyze"
+          description: "Analyze query performance"
+        - name: "postgres_backup"
+          description: "Manage database backups"
+    
+    # Add your own tool sets here:
+    # my-service:
+    #   enabled: true
+    #   description: "My custom service tools"
+    #   sandboxUrl: "http://mcp-my-service-sandbox.mcp-shared.svc.cluster.local:8080"
+    #   requiredRole: "mcp-my-service-user"
+    #   tools:
+    #     - name: "my_tool"
+    #       description: "Does something useful"
+  
+  # Resource limits
+  resources:
+    requests:
+      memory: "256Mi"
+      cpu: "200m"
+    limits:
+      memory: "512Mi"
+      cpu: "500m"
+  
+  # Security context
+  securityContext:
+    runAsNonRoot: true
+    allowPrivilegeEscalation: false
+    capabilities:
+      drop:
+        - ALL
+    seccompProfile:
+      type: RuntimeDefault
+  
+  # Health probes
+  livenessProbe:
+    httpGet:
+      path: /health
+      port: 8080
+    initialDelaySeconds: 30
+    periodSeconds: 30
+    timeoutSeconds: 5
+    failureThreshold: 3
+  
+  readinessProbe:
+    httpGet:
+      path: /ready
+      port: 8080
+    initialDelaySeconds: 10
+    periodSeconds: 10
+    timeoutSeconds: 5
+    failureThreshold: 3
+  
+  # Environment variables
+  env:
+    - name: LOG_LEVEL
+      value: "info"
+    - name: GATEWAY_MODE
+      value: "multi-tenant"
+

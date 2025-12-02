@@ -1,19 +1,21 @@
 # This goal of this metadata is mainly used as a source of truth for
 # documentation and qe
 metadata_version: "1.0"
-name: multicloud-gitops
+name: secure-mcp-code-gateway
 pattern_version: "1.0"
-display_name: Multicloud Gitops
-repo_url: https://github.com/validatedpatterns/multicloud-gitops
+display_name: Secure MCP Code Gateway Pattern
+repo_url: https://github.com/validatedpatterns/secure-mcp-code-gateway
 docs_repo_url: https://github.com/validatedpatterns/docs
-issues_url: https://github.com/validatedpatterns/multicloud-gitops/issues
-docs_url: https://validatedpatterns.io/patterns/multicloud-gitops/
-ci_url: https://validatedpatterns.io/ci/?pattern=mcgitops
+issues_url: https://github.com/validatedpatterns/secure-mcp-code-gateway/issues
+docs_url: https://validatedpatterns.io/patterns/secure-mcp-code-gateway/
+ci_url: https://validatedpatterns.io/ci/?pattern=secure-mcp-code-gateway
 # can be sandbox, tested or maintained
-tier: maintained
-owners: mbaldessari, darkdoc
+tier: sandbox
+owners: TBD
+# Note: This pattern supports both full OpenShift clusters and Red Hat Developer Sandbox
+# See docs/DEVELOPER-SANDBOX-GUIDE.md for manual deployment to Developer Sandbox
 requirements:
-  hub: # Main cluster
+  hub: # Single cluster deployment for MCP servers
     compute:
       platform:
         gcp:
@@ -36,35 +38,12 @@ requirements:
         aws:
           replicas: 3
           type: m5.xlarge
-  spoke: # optional - represents the clusters imported into ACM
-    compute:
-      platform:
-        gcp:
-          replicas: 0
-          type: n1-standard-8
-        azure:
-          replicas: 0
-          type: Standard_D8s_v3
-        aws:
-          replicas: 0
-          type: m5.2xlarge
-    controlPlane:
-      platform:
-        gcp:
-          replicas: 3
-          type: n1-standard-8
-        azure:
-          replicas: 3
-          type: Standard_D8s_v3
-        aws:
-          replicas: 3
-          type: m5.2xlarge
 
-# Loosely defined extra features like hypershift support, non-openshift
-# kubernetes support, spoke support
+# Loosely defined extra features
 extra_features:
-  hypershift_support: true
-  spoke_support: true
+  hypershift_support: false
+  spoke_support: false
+  multi_tenant_auth: true
 
 external_requirements:
-# external quay, s3 bucket, agof tokens to access paywalled material, manifests, rag-llm hw (only selected regions)
+# Container registry for custom MCP gateway and sandbox images

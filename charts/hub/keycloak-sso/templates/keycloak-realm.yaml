@@ -1,0 +1,118 @@
+apiVersion: keycloak.org/v1alpha1
+kind: KeycloakRealm
+metadata:
+  name: mcp-realm
+  namespace: mcp-shared
+  labels:
+    app: mcp-keycloak
+    realm: {{ .Values.keycloak.realm.name | default "mcp-realm" }}
+spec:
+  instanceSelector:
+    matchLabels:
+      app: mcp-keycloak
+  realm:
+    id: {{ .Values.keycloak.realm.name | default "mcp-realm" }}
+    realm: {{ .Values.keycloak.realm.name | default "mcp-realm" }}
+    enabled: {{ .Values.keycloak.realm.enabled | default true }}
+    displayName: "MCP Server Authentication"
+    
+    # Realm-level roles for RBAC across all MCP servers
+    roles:
+      realm:
+        - name: mcp-admin
+          description: "Full administrative access to all MCP servers"
+        - name: mcp-log-analyst
+          description: "Access to log analysis MCP server and tools"
+        - name: mcp-viewer
+          description: "Read-only access to MCP servers"
+    
+    # OAuth/OIDC clients for MCP servers
+    clients:
+      # Multi-tenant MCP gateway client
+      # This single client serves all tool sets / sandboxes
+      - clientId: {{ .Values.keycloak.clients.gateway.clientId | default "mcp-gateway-client" }}
+        name: "Multi-Tenant MCP Gateway"
+        description: "OAuth client for the multi-tenant MCP gateway (routes to all sandboxes)"
+        enabled: true
+        clientAuthenticatorType: client-secret
+        secret: {{ .Values.keycloak.clients.gateway.secret | default "PLACEHOLDER-UPDATE-ME" }}
+        publicClient: false
+        standardFlowEnabled: true
+        directAccessGrantsEnabled: true
+        serviceAccountsEnabled: true
+        redirectUris:
+          {{- range .Values.keycloak.clients.gateway.redirectUris }}
+          - {{ . | quote }}
+          {{- end }}
+        webOrigins:
+          - "*"
+        protocol: openid-connect
+        attributes:
+          access.token.lifespan: "3600"
+          client.secret.creation.time: "0"
+        
+        # Default role mappings for this client
+        defaultClientScopes:
+          - profile
+          - email
+          - roles
+        
+        # Protocol mappers to include roles in tokens
+        protocolMappers:
+          - name: "realm-roles"
+            protocol: "openid-connect"
+            protocolMapper: "oidc-usermodel-realm-role-mapper"
+            consentRequired: false
+            config:
+              "claim.name": "realm_roles"
+              "jsonType.label": "String"
+              "multivalued": "true"
+              "user.attribute": "foo"
+          
+          - name: "username"
+            protocol: "openid-connect"
+            protocolMapper: "oidc-usermodel-property-mapper"
+            consentRequired: false
+            config:
+              "user.attribute": "username"
+              "claim.name": "preferred_username"
+              "jsonType.label": "String"
+          
+          - name: "email"
+            protocol: "openid-connect"
+            protocolMapper: "oidc-usermodel-property-mapper"
+            consentRequired: false
+            config:
+              "user.attribute": "email"
+              "claim.name": "email"
+              "jsonType.label": "String"
+    
+    # Example users (for testing - remove in production)
+    users:
+      - username: "demo-analyst"
+        enabled: true
+        email: "analyst@example.com"
+        firstName: "Demo"
+        lastName: "Analyst"
+        credentials:
+          - type: password
+            value: "changeme"
+            temporary: true
+        realmRoles:
+          - mcp-log-analyst
+          - mcp-viewer
+      
+      - username: "demo-admin"
+        enabled: true
+        email: "admin@example.com"
+        firstName: "Demo"
+        lastName: "Admin"
+        credentials:
+          - type: password
+            value: "changeme"
+            temporary: true
+        realmRoles:
+          - mcp-admin
+          - mcp-log-analyst
+          - mcp-viewer
+

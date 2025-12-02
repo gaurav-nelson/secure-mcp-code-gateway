@@ -1,0 +1,112 @@
+# This is an alternative Keycloak deployment for environments where
+# the Red Hat SSO Operator is not available (e.g., Developer Sandbox)
+#
+# To use this instead of the operator-based deployment:
+# 1. Comment out keycloak-instance.yaml
+# 2. Uncomment this file
+# 3. Adjust namespace to match your environment
+
+{{- if .Values.keycloak.directDeploy }}
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: mcp-keycloak
+  namespace: {{ .Values.keycloak.namespace | default "mcp-shared" }}
+  labels:
+    app: mcp-keycloak
+    component: auth
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: mcp-keycloak
+  template:
+    metadata:
+      labels:
+        app: mcp-keycloak
+        component: auth
+    spec:
+      containers:
+      - name: keycloak
+        image: quay.io/keycloak/keycloak:23.0
+        args: ["start-dev"]
+        env:
+        - name: KEYCLOAK_ADMIN
+          value: admin
+        - name: KEYCLOAK_ADMIN_PASSWORD
+          value: {{ .Values.keycloak.adminPassword | default "admin" }}
+        - name: KC_PROXY
+          value: edge
+        - name: KC_HEALTH_ENABLED
+          value: "true"
+        ports:
+        - name: http
+          containerPort: 8080
+        # Adjusted health checks that work in dev mode
+        readinessProbe:
+          httpGet:
+            path: /
+            port: 8080
+          initialDelaySeconds: 90
+          periodSeconds: 10
+          timeoutSeconds: 5
+          failureThreshold: 10
+        livenessProbe:
+          httpGet:
+            path: /
+            port: 8080
+          initialDelaySeconds: 120
+          periodSeconds: 30
+          timeoutSeconds: 5
+          failureThreshold: 5
+        resources:
+          requests:
+            memory: "512Mi"
+            cpu: "250m"
+          limits:
+            memory: "1Gi"
+            cpu: "500m"
+        # Security context for non-root execution
+        securityContext:
+          runAsNonRoot: true
+          allowPrivilegeEscalation: false
+          capabilities:
+            drop:
+              - ALL
+          seccompProfile:
+            type: RuntimeDefault
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: mcp-keycloak
+  namespace: {{ .Values.keycloak.namespace | default "mcp-shared" }}
+  labels:
+    app: mcp-keycloak
+spec:
+  ports:
+  - name: http
+    port: 8080
+    targetPort: 8080
+  selector:
+    app: mcp-keycloak
+  type: ClusterIP
+---
+apiVersion: route.openshift.io/v1
+kind: Route
+metadata:
+  name: mcp-keycloak
+  namespace: {{ .Values.keycloak.namespace | default "mcp-shared" }}
+  labels:
+    app: mcp-keycloak
+spec:
+  to:
+    kind: Service
+    name: mcp-keycloak
+  port:
+    targetPort: http
+  tls:
+    termination: edge
+    insecureEdgeTerminationPolicy: Redirect
+{{- end }}
+

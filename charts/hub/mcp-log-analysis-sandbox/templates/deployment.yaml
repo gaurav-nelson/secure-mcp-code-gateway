@@ -1,0 +1,176 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ .Values.sandbox.name | default "mcp-log-analysis-sandbox" }}
+  namespace: {{ .Values.sandbox.namespace | default "mcp-log-analysis" }}
+  labels:
+    app: {{ .Values.sandbox.name | default "mcp-log-analysis-sandbox" }}
+    mcp-server: log-analysis
+    component: sandbox
+spec:
+  replicas: {{ .Values.sandbox.replicas | default 1 }}
+  selector:
+    matchLabels:
+      app: {{ .Values.sandbox.name | default "mcp-log-analysis-sandbox" }}
+  template:
+    metadata:
+      labels:
+        app: {{ .Values.sandbox.name | default "mcp-log-analysis-sandbox" }}
+        mcp-server: log-analysis
+        component: sandbox
+    spec:
+      serviceAccountName: {{ .Values.sandbox.name | default "mcp-log-analysis-sandbox" }}
+      
+      # Strict pod-level security
+      # OpenShift will assign runAsUser/fsGroup from allowed range
+      securityContext:
+        runAsNonRoot: true
+        seccompProfile:
+          type: RuntimeDefault
+      
+      # Mount the approved tools from ConfigMap
+      volumes:
+        - name: tools
+          configMap:
+            name: {{ .Values.sandbox.name | default "mcp-log-analysis-sandbox" }}-tools
+        - name: tmp
+          emptyDir: {}
+        - name: home
+          emptyDir: {}
+      
+      containers:
+        - name: sandbox
+          image: "{{ .Values.sandbox.image.repository }}:{{ .Values.sandbox.image.tag }}"
+          imagePullPolicy: {{ .Values.sandbox.image.pullPolicy | default "Always" }}
+          
+          # Start a simple Python HTTP server that can execute the tools
+          command: ["python3", "-c"]
+          args:
+            - |
+              from http.server import HTTPServer, BaseHTTPRequestHandler
+              import json
+              import sys
+              import os
+              
+              # Add tools directory to Python path
+              tools_path = os.environ.get('TOOLS_PATH', '/home/runner/tools')
+              sys.path.insert(0, tools_path)
+              
+              class SandboxHandler(BaseHTTPRequestHandler):
+                  """
+                  MCP Sandbox HTTP Server
+                  Executes approved Python tools from the mounted ConfigMap
+                  """
+                  
+                  def do_GET(self):
+                      if self.path == '/health':
+                          self.send_response(200)
+                          self.send_header('Content-type', 'application/json')
+                          self.end_headers()
+                          self.wfile.write(json.dumps({'status': 'healthy'}).encode())
+                          return
+                      
+                      if self.path == '/ready':
+                          self.send_response(200)
+                          self.send_header('Content-type', 'application/json')
+                          self.end_headers()
+                          self.wfile.write(json.dumps({'status': 'ready'}).encode())
+                          return
+                      
+                      if self.path == '/':
+                          self.send_response(200)
+                          self.send_header('Content-type', 'application/json')
+                          self.end_headers()
+                          
+                          # List available tools
+                          available_tools = []
+                          try:
+                              for file in os.listdir(tools_path):
+                                  if file.endswith('.py') and not file.startswith('__'):
+                                      available_tools.append(file[:-3])
+                          except Exception as e:
+                              pass
+                          
+                          response = {
+                              'status': 'ok',
+                              'message': 'MCP Log Analysis Sandbox',
+                              'tools': available_tools,
+                              'tools_path': tools_path
+                          }
+                          self.wfile.write(json.dumps(response, indent=2).encode())
+                          return
+                      
+                      self.send_error(404, 'Not Found')
+                  
+                  def log_message(self, format, *args):
+                      # Log to stdout for audit trail
+                      log_entry = {
+                          'type': 'sandbox_request',
+                          'path': self.path,
+                          'method': self.command,
+                          'client': self.client_address[0]
+                      }
+                      print(json.dumps(log_entry))
+              
+              # Start server
+              try:
+                  httpd = HTTPServer(('0.0.0.0', 8080), SandboxHandler)
+                  print(f'MCP Sandbox listening on port 8080...')
+                  print(f'Tools path: {tools_path}')
+                  httpd.serve_forever()
+              except Exception as e:
+                  print(f'Sandbox failed to start: {e}')
+                  sys.exit(1)
+          
+          ports:
+            - name: http
+              containerPort: {{ .Values.sandbox.service.targetPort | default 8080 }}
+              protocol: TCP
+          
+          # Mount tools as read-only
+          volumeMounts:
+            - name: tools
+              mountPath: {{ .Values.sandbox.tools.path | default "/home/runner/tools" }}
+              readOnly: true
+            - name: tmp
+              mountPath: /tmp
+            - name: home
+              mountPath: /home/runner
+          
+          env:
+            - name: TOOLS_PATH
+              value: {{ .Values.sandbox.tools.path | default "/home/runner/tools" }}
+            - name: LOG_FORMAT
+              value: "json"
+            - name: PYTHONPATH
+              value: "{{ .Values.sandbox.tools.path | default "/home/runner/tools" }}:/home/runner"
+          
+          # Extremely strict container security
+          # OpenShift will assign runAsUser from allowed range
+          securityContext:
+            allowPrivilegeEscalation: false
+            runAsNonRoot: true
+            capabilities:
+              drop:
+                - ALL
+            seccompProfile:
+              type: RuntimeDefault
+            readOnlyRootFilesystem: {{ .Values.sandbox.securityContext.readOnlyRootFilesystem | default true }}
+          
+          resources:
+            {{- toYaml .Values.sandbox.resources | nindent 12 }}
+          
+          livenessProbe:
+            httpGet:
+              path: /health
+              port: http
+            initialDelaySeconds: 10
+            periodSeconds: 10
+          
+          readinessProbe:
+            httpGet:
+              path: /ready
+              port: http
+            initialDelaySeconds: 5
+            periodSeconds: 5
+

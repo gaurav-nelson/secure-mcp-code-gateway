@@ -1,0 +1,5 @@
+---
+# Default values for cluster-logging-instance
+# Uses global values from the pattern
+global: {}
+

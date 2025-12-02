@@ -1,12 +1,13 @@
----
 global:
-  pattern: multicloud-gitops
+  pattern: secure-mcp-code-gateway
+  secretLoader:
+    disabled: true
   options:
-    useCSV: false
-    syncPolicy: Automatic
     installPlanApproval: Automatic
+    syncPolicy: Automatic
+    useCSV: false
 main:
   clusterGroupName: hub
   multiSourceConfig:
     enabled: true
-    clusterGroupChartVersion: "0.9.*"
+    clusterGroupChartVersion: 0.9.*

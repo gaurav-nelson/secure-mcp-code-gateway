@@ -1,0 +1,59 @@
+---
+# Default values for mcp-log-analysis-sandbox
+# This is a TEMPLATE chart - clone it for your own MCP server
+
+global: {}
+
+sandbox:
+  name: mcp-log-analysis-sandbox
+  namespace: mcp-log-analysis
+  replicas: 1
+  
+  # For testing: using UBI Python base image
+  # For production: Build and push your custom sandbox runtime image with only approved packages
+  image:
+    repository: registry.access.redhat.com/ubi9/python-311
+    tag: latest
+    pullPolicy: Always
+  
+  # Tool set configuration
+  # These tools are mounted from the tools/ directory via ConfigMap
+  tools:
+    path: /home/runner/tools
+    # Path in Git repo where tools are located
+    sourcePath: tools/log-analysis
+  
+  # Service configuration (for gateway to call)
+  service:
+    port: 8080
+    targetPort: 8080
+  
+  # Resource limits (restricted for security)
+  resources:
+    requests:
+      memory: "128Mi"
+      cpu: "100m"
+    limits:
+      memory: "512Mi"
+      cpu: "500m"
+  
+  # Strict security context
+  # Note: runAsUser will be assigned automatically by OpenShift SCC
+  securityContext:
+    allowPrivilegeEscalation: false
+    runAsNonRoot: true
+    capabilities:
+      drop:
+        - ALL
+    seccompProfile:
+      type: RuntimeDefault
+    readOnlyRootFilesystem: true
+  
+  # Network policy to restrict outbound access
+  networkPolicy:
+    enabled: true
+    # Only allow communication with gateway in same namespace
+    allowFromGateway: true
+    # Deny all other traffic
+    denyAll: true
+

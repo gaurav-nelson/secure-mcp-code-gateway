@@ -1,0 +1,26 @@
+apiVersion: logging.openshift.io/v1
+kind: ClusterLogging
+metadata:
+  name: instance
+  namespace: openshift-logging
+spec:
+  managementState: Managed
+  logStore:
+    type: loki
+    loki:
+      nodeSelector:
+        node-role.kubernetes.io/worker: ""
+      tolerations:
+        - effect: NoSchedule
+          key: node-role.kubernetes.io/master
+          operator: Exists
+  collection:
+    type: vector
+    vector:
+      nodeSelector:
+        node-role.kubernetes.io/worker: ""
+      tolerations:
+        - effect: NoSchedule
+          key: node-role.kubernetes.io/master
+          operator: Exists
+

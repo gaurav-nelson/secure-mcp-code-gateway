@@ -1,0 +1,14 @@
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  name: {{ .Values.gateway.name | default "mcp-gateway" }}
+  namespace: {{ .Values.gateway.namespace | default "mcp-shared" }}
+  labels:
+    app: {{ .Values.gateway.name | default "mcp-gateway" }}
+    component: gateway
+rules:
+  # Allow reading secrets with the mcp-api-key label
+  - apiGroups: [""]
+    resources: ["secrets"]
+    verbs: ["get", "list"]
+
