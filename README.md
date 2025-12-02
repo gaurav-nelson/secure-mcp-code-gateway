@@ -2,32 +2,49 @@
 
 [![License](https://img.shields.io/badge/License-Apache%202.0-blue.svg)](https://opensource.org/licenses/Apache-2.0)
 
-A GitOps-based validated pattern for deploying secure, enterprise-grade AI agent infrastructure on Red Hat OpenShift. This pattern provides a complete framework for running multiple MCP (Model Context Protocol) servers with centralized authentication, role-based access control (RBAC), and comprehensive audit logging.
+A GitOps-based validated pattern for deploying secure, enterprise-grade MCP infrastructure on Red Hat OpenShift. This pattern provides a centralized gateway for multiple MCP (Model Context Protocol) servers with unified authentication, role-based access control (RBAC), and comprehensive audit logging.
 
 ## What is MCP?
 
-The Model Context Protocol (MCP) is an open standard that enables AI assistants to connect to external tools and data sources. Instead of processing everything through the LLM's context window, MCP allows agents to execute operations in secure environments and return only the results.
+The Model Context Protocol (MCP) is an open standard that enables AI assistants (like Cursor, Claude Desktop, or custom agents) to connect to external tools and data sources. MCP servers expose tools that AI can call to perform actions—querying databases, analyzing logs, calling APIs, or processing files.
 
-### The Challenge: Token Consumption at Scale
+### The Challenge: Enterprise MCP Deployment
 
-As AI agents connect to more tools, two problems emerge:
+As enterprises deploy MCP servers at scale, three critical challenges emerge:
 
-1. **Tool Definitions Overload Context** - Loading hundreds or thousands of tool schemas upfront consumes massive tokens before the agent even reads your request. Each tool definition (parameters, types, descriptions) can be 200-500 tokens.
+1. **Security and Compliance Gaps** - Traditional MCP implementations lack enterprise security controls:
+   - **No centralized authentication** - Each MCP server manages its own auth, creating inconsistent security postures
+   - **No audit trail** - No unified logging of who accessed what tools, when, and what data was processed
+   - **No RBAC** - Users get access to all tools or none; no granular role-based permissions
+   - **Data exposure risk** - Sensitive data flows through external AI services with no controls
+   - **Compliance failures** - SOC 2, HIPAA, and PCI-DSS require audit logs and access controls that traditional MCP can't provide
 
-2. **Intermediate Results Bloat Context** - When agents pass data between tools, all intermediate results flow through the LLM. Processing a 50,000-word meeting transcript multiple times can consume 200,000+ tokens for a single request.
+2. **Operational Complexity** - Managing dozens of standalone MCP servers means:
+   - Multiple endpoints to secure and monitor
+   - Inconsistent logging formats
+   - No single pane of glass for operations
+   - Difficult incident response without centralized visibility
 
-**Example**: Copying data from a spreadsheet with 10,000 rows into a CRM would require loading all rows into context, then writing them all back out - consuming tokens twice for no benefit.
+3. **Cost and Performance** - Without optimization:
+   - Loading hundreds of tool schemas upfront consumes massive tokens (200-500 tokens per tool definition)
+   - Intermediate results flowing through the LLM can consume 200,000+ tokens for a single request
+   - Large datasets must flow through AI context windows, multiplying costs
 
-### This Pattern's Solution: Sandboxed Tool Execution
+**Example**: A financial services firm deploying 20 MCP tools faces 20 separate authentication systems, no unified audit log for regulators, and no way to revoke a compromised user's access across all tools simultaneously.
 
-This pattern implements a **code execution architecture** where:
+### This Pattern's Solution: Secure MCP Gateway
 
-- **Tools run in isolated sandboxes** - Data processing happens in secure Python environments, not in the LLM context
-- **Progressive tool discovery** - The gateway loads only the tool definitions needed for each request, not all tools upfront
-- **Direct data flow** - Results stream from one tool to another within the sandbox; only final results return to the AI
-- **Context efficiency** - Process gigabytes of data using minimal tokens
+This pattern implements an **enterprise MCP gateway** that sits between AI clients and your MCP tool servers:
 
-**Result**: Handle large datasets efficiently, reduce costs by 90%+, and maintain security through isolation.
+- **Centralized authentication** - Single Keycloak instance provides OAuth 2.1 and API key auth for all tools
+- **Complete audit logging** - Every MCP request logged with user identity, tool called, and timestamp
+- **Role-based access control** - Users see only the tools their roles permit
+- **Compliance-ready** - Built-in audit trails for SOC 2, HIPAA, and regulatory requirements
+- **Isolated sandboxes** - Tools run in secure, isolated environments on OpenShift
+- **Progressive tool discovery** - Gateway exposes only relevant tools based on user roles, reducing token overhead
+- **Efficient data handling** - Results flow between tools within sandboxes; only final results return to the AI
+
+**Result**: Deploy MCP tools with enterprise security, unified governance, and 90%+ cost reduction on data-intensive operations.
 
 ## Quick Start
 
