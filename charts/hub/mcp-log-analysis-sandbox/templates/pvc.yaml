@@ -1,0 +1,19 @@
+{{- if .Values.workspace.enabled }}
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: {{ .Values.sandbox.name | default "mcp-log-analysis-sandbox" }}-workspace
+  namespace: {{ .Values.sandbox.namespace | default "mcp-log-analysis" }}
+  labels:
+    app: {{ .Values.sandbox.name | default "mcp-log-analysis-sandbox" }}
+    component: workspace
+spec:
+  accessModes:
+    - {{ .Values.workspace.accessMode | default "ReadWriteOnce" }}
+  resources:
+    requests:
+      storage: {{ .Values.workspace.size | default "1Gi" }}
+  {{- if .Values.workspace.storageClassName }}
+  storageClassName: {{ .Values.workspace.storageClassName }}
+  {{- end }}
+{{- end }}

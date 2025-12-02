@@ -53,6 +53,10 @@ gateway:
           description: "Execute Python code in sandbox with access to log_store and privacy tools"
         - name: "get_available_tools"
           description: "List tools and modules available for use in execute_code"
+        - name: "workspace"
+          description: "Persistent file storage for saving checkpoints and intermediate results"
+        - name: "get_workspace_info"
+          description: "Get workspace usage info and limits"
 
     # Example 2: Cloudflare Tools (disabled by default - user implements)
     cloudflare:

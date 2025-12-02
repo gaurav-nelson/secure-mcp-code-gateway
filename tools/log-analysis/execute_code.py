@@ -58,6 +58,7 @@ ALLOWED_IMPORTS = {
     # Sandbox tools (the main purpose of code execution)
     'log_store',
     'privacy',
+    'workspace',  # Persistent storage for checkpoints and state
 
     # Safe standard library modules
     'json',
@@ -207,9 +208,11 @@ def create_execution_globals(tools_path: str = None) -> Dict[str, Any]:
 
         import log_store
         import privacy
+        import workspace
 
         exec_globals['log_store'] = log_store
         exec_globals['privacy'] = privacy
+        exec_globals['workspace'] = workspace
 
     except ImportError as e:
         # Tools may not be available in all environments
@@ -384,24 +387,24 @@ def get_available_tools() -> Dict[str, Any]:
 
     Returns:
         Dict with:
-        - sandbox_tools: List of MCP sandbox tools (log_store, privacy)
+        - sandbox_tools: List of MCP sandbox tools (log_store, privacy, workspace)
         - standard_modules: List of allowed standard library modules
         - example: Example code snippet
 
     Example:
         >>> info = get_available_tools()
         >>> print(info['sandbox_tools'])
-        ['log_store', 'privacy']
+        ['log_store', 'privacy', 'workspace']
     """
 
-    sandbox_tools = ['log_store', 'privacy']
+    sandbox_tools = ['log_store', 'privacy', 'workspace']
     standard_modules = sorted([
         m for m in ALLOWED_IMPORTS
         if m not in sandbox_tools
     ])
 
     example = '''
-# Example: Process logs and scrub PII
+# Example: Process logs, scrub PII, and save checkpoint
 import json
 
 # Query logs (data stays in sandbox)
@@ -413,10 +416,16 @@ for error in errors:
     clean = privacy.scrub_all_pii(error)
     results.append(clean)
 
+# Save checkpoint for later resumption
+workspace.save_checkpoint("error_analysis", {
+    "processed": len(results),
+    "sample": results[:3]
+})
+
 # Only return summary to AI
 print(json.dumps({
     "count": len(results),
-    "sample": results[:3]
+    "checkpoint_saved": True
 }))
 '''
 

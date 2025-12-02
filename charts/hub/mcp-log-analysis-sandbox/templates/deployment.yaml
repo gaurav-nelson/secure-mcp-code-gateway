@@ -37,6 +37,11 @@ spec:
           emptyDir: {}
         - name: home
           emptyDir: {}
+        {{- if .Values.workspace.enabled }}
+        - name: workspace
+          persistentVolumeClaim:
+            claimName: {{ .Values.sandbox.name | default "mcp-log-analysis-sandbox" }}-workspace
+        {{- end }}
 
       containers:
         - name: sandbox
@@ -157,6 +162,23 @@ spec:
                                   result = func(**arguments)
                               else:
                                   result = {'error': f"Function '{func_name}' not found in privacy"}
+
+                          elif tool_name == 'workspace':
+                              # Workspace tool - multiple functions for persistent storage
+                              func_name = arguments.pop('function', 'get_workspace_info')
+                              if hasattr(module, func_name):
+                                  func = getattr(module, func_name)
+                                  result = func(**arguments)
+                              else:
+                                  result = {'error': f"Function '{func_name}' not found in workspace"}
+
+                          elif tool_name == 'get_workspace_info':
+                              # Direct call to get_workspace_info
+                              ws_module = load_tool_module('workspace')
+                              if ws_module and hasattr(ws_module, 'get_workspace_info'):
+                                  result = ws_module.get_workspace_info()
+                              else:
+                                  result = {'error': 'get_workspace_info not found'}
 
                           else:
                               # Generic tool execution - try to find main function
@@ -290,6 +312,10 @@ spec:
               mountPath: /tmp
             - name: home
               mountPath: /home/runner
+            {{- if .Values.workspace.enabled }}
+            - name: workspace
+              mountPath: {{ .Values.workspace.mountPath | default "/workspace" }}
+            {{- end }}
 
           env:
             - name: TOOLS_PATH
@@ -298,6 +324,10 @@ spec:
               value: "json"
             - name: PYTHONPATH
               value: "{{ .Values.sandbox.tools.path | default "/home/runner/tools" }}:/home/runner"
+            {{- if .Values.workspace.enabled }}
+            - name: WORKSPACE_PATH
+              value: {{ .Values.workspace.mountPath | default "/workspace" }}
+            {{- end }}
 
           # Extremely strict container security
           # OpenShift will assign runAsUser from allowed range

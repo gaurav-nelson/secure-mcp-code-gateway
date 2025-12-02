@@ -10,11 +10,12 @@ The tools in this directory demonstrate the **Code Execution** model described i
 - Code can `import` these approved tools
 - Large data is processed locally, not sent to the LLM
 - Data flows between tools within the sandbox (not through AI context)
+- State can be persisted across requests using the workspace
 - Security reviews new tools via pull requests
 
 ## Available Tools
 
-### `execute_code.py` - Safe Python Code Execution ⭐ NEW
+### `execute_code.py` - Safe Python Code Execution ⭐
 
 Enables AI agents to write and execute Python code in the sandbox with access to all approved tools. This is the key tool that implements the "Code Execution with MCP" pattern.
 
@@ -27,7 +28,7 @@ Enables AI agents to write and execute Python code in the sandbox with access to
 {
   "tool": "execute_code",
   "arguments": {
-    "code": "import json\nerrors = log_store.search_logs('api', 'error', limit=100)\nclean = [privacy.scrub_all_pii(e) for e in errors]\nprint(json.dumps({'count': len(clean), 'sample': clean[:3]}))"
+    "code": "import json\nerrors = log_store.search_logs('api', 'error', limit=100)\nclean = [privacy.scrub_all_pii(e) for e in errors]\nworkspace.save_checkpoint('analysis', {'count': len(clean)})\nprint(json.dumps({'count': len(clean), 'sample': clean[:3]}))"
   }
 }
 ```
@@ -36,13 +37,52 @@ Enables AI agents to write and execute Python code in the sandbox with access to
 - Process data between tools without returning to AI context
 - Use loops, conditionals, and complex logic
 - Filter large datasets before returning results
+- Save checkpoints for long-running operations
 - 90-99% token savings on data-intensive operations
 
 **Security Features:**
 - Whitelist of allowed imports only
 - 30-second execution timeout
-- Restricted builtins (no file I/O, no network)
+- Restricted builtins (no direct file I/O, no network)
 - Output size limits (100KB)
+
+### `workspace.py` - Persistent Storage ⭐ NEW
+
+Enables state persistence across requests. AI agents can save checkpoints, intermediate results, and resume long-running tasks.
+
+**Key Functions:**
+- `write_file(filepath, content)` - Write content to workspace
+- `read_file(filepath)` - Read content from workspace
+- `list_files(directory, recursive)` - List files in workspace
+- `save_checkpoint(name, data)` - Save JSON checkpoint
+- `load_checkpoint(name)` - Load JSON checkpoint
+- `get_workspace_info()` - Get usage info and limits
+
+**Example Usage:**
+```python
+import workspace
+import json
+
+# Save intermediate results
+workspace.write_file("results/batch1.json", json.dumps({"processed": 100}))
+
+# Use checkpoint helpers for structured data
+workspace.save_checkpoint("analysis_state", {
+    "processed_services": ["api", "auth"],
+    "remaining": ["payment", "billing"]
+})
+
+# Resume later
+state = workspace.load_checkpoint("analysis_state")
+print(f"Resuming from: {state['remaining']}")
+```
+
+**Security Features:**
+- All paths restricted to `/workspace` directory
+- No access to system files
+- File size limit (10MB per file)
+- Workspace quota (100MB total)
+- Allowed file extensions only
 
 ### `log_store.py` - Log Search and Analysis
 
@@ -88,6 +128,34 @@ safe_logs = [privacy.scrub_all_pii(log) for log in raw_logs]
 print("Anonymized logs:")
 for log in safe_logs[:5]:
     print(log)
+```
+
+## Code Execution with State Persistence
+
+Combine `execute_code` with `workspace` for powerful long-running workflows:
+
+```python
+# First request: Start processing
+errors = log_store.search_logs("*", "error", limit=1000)
+processed = []
+for i, error in enumerate(errors[:100]):
+    clean = privacy.scrub_all_pii(error)
+    processed.append(clean)
+
+# Save checkpoint
+workspace.save_checkpoint("error_scan", {
+    "processed": len(processed),
+    "total": len(errors),
+    "results": processed
+})
+print(f"Processed {len(processed)} of {len(errors)}, checkpoint saved")
+```
+
+```python
+# Follow-up request: Resume from checkpoint
+state = workspace.load_checkpoint("error_scan")
+print(f"Resuming from {state['processed']} of {state['total']}")
+# Continue processing...
 ```
 
 ## Code Execution Pattern

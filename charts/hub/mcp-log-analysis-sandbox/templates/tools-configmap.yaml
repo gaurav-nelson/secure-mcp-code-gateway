@@ -20,3 +20,6 @@ data:
 
   execute_code.py: |
 {{- .Files.Get "tools/log-analysis/execute_code.py" | nindent 4 }}
+
+  workspace.py: |
+{{- .Files.Get "tools/log-analysis/workspace.py" | nindent 4 }}

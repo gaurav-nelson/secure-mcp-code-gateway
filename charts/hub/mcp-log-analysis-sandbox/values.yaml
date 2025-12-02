@@ -8,26 +8,26 @@ sandbox:
   name: mcp-log-analysis-sandbox
   namespace: mcp-log-analysis
   replicas: 1
-  
+
   # For testing: using UBI Python base image
   # For production: Build and push your custom sandbox runtime image with only approved packages
   image:
     repository: registry.access.redhat.com/ubi9/python-311
     tag: latest
     pullPolicy: Always
-  
+
   # Tool set configuration
   # These tools are mounted from the tools/ directory via ConfigMap
   tools:
     path: /home/runner/tools
     # Path in Git repo where tools are located
     sourcePath: tools/log-analysis
-  
+
   # Service configuration (for gateway to call)
   service:
     port: 8080
     targetPort: 8080
-  
+
   # Resource limits (restricted for security)
   resources:
     requests:
@@ -36,7 +36,7 @@ sandbox:
     limits:
       memory: "512Mi"
       cpu: "500m"
-  
+
   # Strict security context
   # Note: runAsUser will be assigned automatically by OpenShift SCC
   securityContext:
@@ -48,7 +48,7 @@ sandbox:
     seccompProfile:
       type: RuntimeDefault
     readOnlyRootFilesystem: true
-  
+
   # Network policy to restrict outbound access
   networkPolicy:
     enabled: true
@@ -57,3 +57,16 @@ sandbox:
     # Deny all other traffic
     denyAll: true
 
+# Workspace persistence configuration
+# Enables state persistence across requests (Phase 2 feature)
+workspace:
+  # Enable/disable persistent workspace
+  enabled: true
+  # Mount path in container
+  mountPath: /workspace
+  # PVC size
+  size: 1Gi
+  # Access mode (ReadWriteOnce for single-replica, ReadWriteMany for multi-replica)
+  accessMode: ReadWriteOnce
+  # Optional: specify storage class (uses cluster default if not set)
+  # storageClassName: "gp2"
