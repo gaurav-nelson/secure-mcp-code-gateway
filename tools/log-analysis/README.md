@@ -4,14 +4,45 @@ This directory contains the **approved Python APIs** for the log-analysis MCP se
 
 ## Overview
 
-The tools in this directory demonstrate the **Code Mode** execution model:
+The tools in this directory demonstrate the **Code Execution** model described in [Anthropic's "Code Execution with MCP" blog post](https://www.anthropic.com/engineering/code-execution-with-mcp):
 
-- AI-generated code runs in the secure sandbox
+- AI writes code that runs in a secure sandbox
 - Code can `import` these approved tools
 - Large data is processed locally, not sent to the LLM
+- Data flows between tools within the sandbox (not through AI context)
 - Security reviews new tools via pull requests
 
 ## Available Tools
+
+### `execute_code.py` - Safe Python Code Execution ⭐ NEW
+
+Enables AI agents to write and execute Python code in the sandbox with access to all approved tools. This is the key tool that implements the "Code Execution with MCP" pattern.
+
+**Key Functions:**
+- `execute_code(code, timeout, max_output)` - Execute Python code safely
+- `get_available_tools()` - List tools and modules available for code execution
+
+**Example Usage (via MCP):**
+```json
+{
+  "tool": "execute_code",
+  "arguments": {
+    "code": "import json\nerrors = log_store.search_logs('api', 'error', limit=100)\nclean = [privacy.scrub_all_pii(e) for e in errors]\nprint(json.dumps({'count': len(clean), 'sample': clean[:3]}))"
+  }
+}
+```
+
+**Why this matters:**
+- Process data between tools without returning to AI context
+- Use loops, conditionals, and complex logic
+- Filter large datasets before returning results
+- 90-99% token savings on data-intensive operations
+
+**Security Features:**
+- Whitelist of allowed imports only
+- 30-second execution timeout
+- Restricted builtins (no file I/O, no network)
+- Output size limits (100KB)
 
 ### `log_store.py` - Log Search and Analysis
 
@@ -24,14 +55,14 @@ Provides efficient log searching without sending 500MB files to the LLM.
 
 **Example Usage:**
 ```python
-import tools.log_store as logs
+import log_store
 
 # Find all HTTP 500 errors in payment service
-errors = logs.search_logs("payment-service", "HTTP 500", limit=20)
+errors = log_store.search_logs("payment-service", "HTTP 500", limit=20)
 print(f"Found {len(errors)} server errors")
 
 # Get summary statistics
-summary = logs.get_error_summary("payment-service", hours=24)
+summary = log_store.get_error_summary("payment-service", hours=24)
 print(f"Error rate: {summary['error_rate_per_hour']}/hour")
 ```
 
@@ -47,46 +78,45 @@ Enables processing sensitive data WITHOUT exposing it to the LLM.
 
 **Example Usage:**
 ```python
-import tools.privacy as privacy
+import privacy
 
-# Load sensitive customer data (stays in sandbox)
-with open("/data/customer-complaints.txt", 'r') as f:
-    raw_data = f.read()
+# Scrub all PII from log data
+raw_logs = log_store.search_logs("customer-service", "complaint", limit=50)
+safe_logs = [privacy.scrub_all_pii(log) for log in raw_logs]
 
-# Scrub all PII before sending to LLM
-safe_data = privacy.scrub_all_pii(raw_data)
-
-# Now it's safe to analyze with the LLM
-print("Anonymized data:")
-print(safe_data)
+# Now it's safe to return to AI
+print("Anonymized logs:")
+for log in safe_logs[:5]:
+    print(log)
 ```
 
-## Why Code Mode?
+## Code Execution Pattern
 
-Traditional "direct tool call" models fail with large data:
+The `execute_code` tool enables the pattern described by Anthropic:
 
-**❌ Direct Tool Call (Expensive):**
+**❌ Traditional MCP (All Data Through AI):**
 ```
-User: "Analyze payment-service.log for errors"
-LLM: calls get_logs("payment-service")
-System: returns 500MB of log data to LLM
-LLM: (context overflow, massive token cost)
+User: "Find database errors and scrub PII"
+AI: calls log_store.search_logs() → returns 10,000 logs to AI context (50K tokens)
+AI: calls privacy.scrub_all_pii() for each → processes in context (100K tokens)
+AI: returns results (10K tokens)
+Total: 160,000 tokens
 ```
 
-**✅ Code Mode (Efficient):**
+**✅ Code Execution (Data Stays in Sandbox):**
 ```
-User: "Analyze payment-service.log for errors"
-LLM: generates Python script:
-     ```
-     import tools.log_store as logs
-     errors = logs.search_logs("payment-service", "ERROR", limit=100)
-     print(f"Found {len(errors)} errors:")
-     for e in errors[:10]:
-         print(e)
-     ```
-System: Executes script in sandbox
-System: Returns only the 10-line output to LLM
-LLM: (minimal tokens used!)
+User: "Find database errors and scrub PII"
+AI: calls execute_code with:
+    ```python
+    errors = log_store.search_logs("db", "error", limit=100)
+    clean = [privacy.scrub_all_pii(e) for e in errors]
+    print(f"Found {len(clean)} errors")
+    for e in clean[:5]:
+        print(e)
+    ```
+Sandbox: Executes code, data flows between tools internally
+AI: receives 10-line output (200 tokens)
+Total: 200 tokens (99.8% savings)
 ```
 
 ## Security Model
@@ -119,10 +149,10 @@ To add a new approved tool for the log-analysis MCP:
    ```python
    """
    My New Tool - Approved for Log Analysis MCP
-   
+
    This tool does X, Y, Z in a safe and efficient way.
    """
-   
+
    def my_function(arg1: str) -> dict:
        """Clear docstring explaining usage"""
        # Implementation
@@ -130,7 +160,7 @@ To add a new approved tool for the log-analysis MCP:
    ```
 
 3. **Update the sandbox ConfigMap:**
-   
+
    The ConfigMap in `charts/hub/mcp-log-analysis-sandbox/templates/tools-configmap.yaml`
    automatically syncs all `.py` files from this directory.
 
@@ -142,7 +172,7 @@ To add a new approved tool for the log-analysis MCP:
    ```
 
 5. **Security review & merge:**
-   
+
    Security reviews the PR to ensure the tool:
    - Doesn't expose sensitive data
    - Doesn't create security vulnerabilities

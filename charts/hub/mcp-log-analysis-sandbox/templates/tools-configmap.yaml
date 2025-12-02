@@ -8,13 +8,15 @@ metadata:
 data:
   # These files are synced from the tools/log-analysis/ directory in Git
   # Argo CD automatically updates this ConfigMap when tools are changed
-  # 
+  #
   # The .Files.Get function reads files from the pattern repository
   # and includes them in the ConfigMap
-  
+
   log_store.py: |
 {{- .Files.Get "tools/log-analysis/log_store.py" | nindent 4 }}
-  
+
   privacy.py: |
 {{- .Files.Get "tools/log-analysis/privacy.py" | nindent 4 }}
 
+  execute_code.py: |
+{{- .Files.Get "tools/log-analysis/execute_code.py" | nindent 4 }}

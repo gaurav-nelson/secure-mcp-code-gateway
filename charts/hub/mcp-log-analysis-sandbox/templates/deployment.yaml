@@ -20,14 +20,14 @@ spec:
         component: sandbox
     spec:
       serviceAccountName: {{ .Values.sandbox.name | default "mcp-log-analysis-sandbox" }}
-      
+
       # Strict pod-level security
       # OpenShift will assign runAsUser/fsGroup from allowed range
       securityContext:
         runAsNonRoot: true
         seccompProfile:
           type: RuntimeDefault
-      
+
       # Mount the approved tools from ConfigMap
       volumes:
         - name: tools
@@ -37,12 +37,12 @@ spec:
           emptyDir: {}
         - name: home
           emptyDir: {}
-      
+
       containers:
         - name: sandbox
           image: "{{ .Values.sandbox.image.repository }}:{{ .Values.sandbox.image.tag }}"
           imagePullPolicy: {{ .Values.sandbox.image.pullPolicy | default "Always" }}
-          
+
           # Start a simple Python HTTP server that can execute the tools
           command: ["python3", "-c"]
           args:
@@ -51,17 +51,171 @@ spec:
               import json
               import sys
               import os
-              
+              import importlib
+              import traceback
+
               # Add tools directory to Python path
               tools_path = os.environ.get('TOOLS_PATH', '/home/runner/tools')
               sys.path.insert(0, tools_path)
-              
+
+              # Pre-load tool modules for faster execution
+              loaded_modules = {}
+
+              def load_tool_module(tool_name):
+                  """Load a tool module dynamically."""
+                  if tool_name in loaded_modules:
+                      return loaded_modules[tool_name]
+                  try:
+                      module = importlib.import_module(tool_name)
+                      loaded_modules[tool_name] = module
+                      return module
+                  except ImportError as e:
+                      return None
+
               class SandboxHandler(BaseHTTPRequestHandler):
                   """
                   MCP Sandbox HTTP Server
                   Executes approved Python tools from the mounted ConfigMap
                   """
-                  
+
+                  def do_POST(self):
+                      """Handle tool execution requests from the gateway."""
+                      if self.path == '/execute':
+                          self.handle_execute()
+                      else:
+                          self.send_error(404, 'Not Found')
+
+                  def handle_execute(self):
+                      """Execute a tool with provided arguments."""
+                      try:
+                          content_length = int(self.headers.get('Content-Length', 0))
+                          body = self.rfile.read(content_length).decode('utf-8')
+                          request = json.loads(body)
+
+                          tool_name = request.get('tool')
+                          arguments = request.get('arguments', {})
+                          user = request.get('user', 'unknown')
+
+                          # Audit log
+                          print(json.dumps({
+                              'type': 'tool_execution',
+                              'tool': tool_name,
+                              'user': user,
+                              'arguments_keys': list(arguments.keys())
+                          }))
+
+                          # Load the tool module
+                          module = load_tool_module(tool_name)
+                          if not module:
+                              self.send_json_response({
+                                  'success': False,
+                                  'error': f"Tool '{tool_name}' not found",
+                                  'output': ''
+                              }, status=404)
+                              return
+
+                          # Find and call the appropriate function
+                          # For execute_code, call execute_code()
+                          # For other tools, call the main function with same name
+                          result = None
+
+                          if tool_name == 'execute_code':
+                              # Special handling for execute_code tool
+                              if hasattr(module, 'execute_code'):
+                                  code = arguments.get('code', '')
+                                  timeout = arguments.get('timeout', 30)
+                                  result = module.execute_code(code, timeout=timeout)
+                              else:
+                                  result = {'success': False, 'error': 'execute_code function not found', 'output': ''}
+
+                          elif tool_name == 'get_available_tools':
+                              # Helper function to list available tools for execute_code
+                              if hasattr(module, 'get_available_tools'):
+                                  result = module.get_available_tools()
+                              else:
+                                  # Fallback - try from execute_code module
+                                  exec_module = load_tool_module('execute_code')
+                                  if exec_module and hasattr(exec_module, 'get_available_tools'):
+                                      result = exec_module.get_available_tools()
+                                  else:
+                                      result = {'error': 'get_available_tools not found'}
+
+                          elif tool_name == 'log_store':
+                              # Log store tool - multiple functions
+                              func_name = arguments.pop('function', 'search_logs')
+                              if hasattr(module, func_name):
+                                  func = getattr(module, func_name)
+                                  result = func(**arguments)
+                              else:
+                                  result = {'error': f"Function '{func_name}' not found in log_store"}
+
+                          elif tool_name == 'privacy':
+                              # Privacy tool - multiple functions
+                              func_name = arguments.pop('function', 'scrub_all_pii')
+                              if hasattr(module, func_name):
+                                  func = getattr(module, func_name)
+                                  result = func(**arguments)
+                              else:
+                                  result = {'error': f"Function '{func_name}' not found in privacy"}
+
+                          else:
+                              # Generic tool execution - try to find main function
+                              # Try: tool_name(), main(), or first public function
+                              func = None
+                              if hasattr(module, tool_name):
+                                  func = getattr(module, tool_name)
+                              elif hasattr(module, 'main'):
+                                  func = getattr(module, 'main')
+                              else:
+                                  # Find first public function
+                                  for name in dir(module):
+                                      if not name.startswith('_') and callable(getattr(module, name)):
+                                          func = getattr(module, name)
+                                          break
+
+                              if func:
+                                  result = func(**arguments)
+                              else:
+                                  result = {'error': f"No callable function found in tool '{tool_name}'"}
+
+                          # Format output
+                          if isinstance(result, dict):
+                              output = json.dumps(result, indent=2, default=str)
+                          elif isinstance(result, (list, tuple)):
+                              output = json.dumps(result, indent=2, default=str)
+                          else:
+                              output = str(result)
+
+                          self.send_json_response({
+                              'success': True,
+                              'output': output,
+                              'tool': tool_name
+                          })
+
+                      except json.JSONDecodeError as e:
+                          self.send_json_response({
+                              'success': False,
+                              'error': f'Invalid JSON: {str(e)}',
+                              'output': ''
+                          }, status=400)
+                      except Exception as e:
+                          tb = traceback.format_exc()
+                          print(json.dumps({'type': 'error', 'error': str(e), 'traceback': tb}))
+                          self.send_json_response({
+                              'success': False,
+                              'error': str(e),
+                              'output': ''
+                          }, status=500)
+
+                  def send_json_response(self, data, status=200):
+                      """Send JSON response."""
+                      body = json.dumps(data).encode('utf-8')
+                      self.send_response(status)
+                      self.send_header('Content-type', 'application/json')
+                      self.send_header('Content-Length', len(body))
+                      self.end_headers()
+                      self.wfile.write(body)
+
                   def do_GET(self):
                       if self.path == '/health':
                           self.send_response(200)
@@ -69,19 +223,19 @@ spec:
                           self.end_headers()
                           self.wfile.write(json.dumps({'status': 'healthy'}).encode())
                           return
-                      
+
                       if self.path == '/ready':
                           self.send_response(200)
                           self.send_header('Content-type', 'application/json')
                           self.end_headers()
                           self.wfile.write(json.dumps({'status': 'ready'}).encode())
                           return
-                      
+
                       if self.path == '/':
                           self.send_response(200)
                           self.send_header('Content-type', 'application/json')
                           self.end_headers()
-                          
+
                           # List available tools
                           available_tools = []
                           try:
@@ -90,7 +244,7 @@ spec:
                                       available_tools.append(file[:-3])
                           except Exception as e:
                               pass
-                          
+
                           response = {
                               'status': 'ok',
                               'message': 'MCP Log Analysis Sandbox',
@@ -99,9 +253,9 @@ spec:
                           }
                           self.wfile.write(json.dumps(response, indent=2).encode())
                           return
-                      
+
                       self.send_error(404, 'Not Found')
-                  
+
                   def log_message(self, format, *args):
                       # Log to stdout for audit trail
                       log_entry = {
@@ -111,7 +265,7 @@ spec:
                           'client': self.client_address[0]
                       }
                       print(json.dumps(log_entry))
-              
+
               # Start server
               try:
                   httpd = HTTPServer(('0.0.0.0', 8080), SandboxHandler)
@@ -121,12 +275,12 @@ spec:
               except Exception as e:
                   print(f'Sandbox failed to start: {e}')
                   sys.exit(1)
-          
+
           ports:
             - name: http
               containerPort: {{ .Values.sandbox.service.targetPort | default 8080 }}
               protocol: TCP
-          
+
           # Mount tools as read-only
           volumeMounts:
             - name: tools
@@ -136,7 +290,7 @@ spec:
               mountPath: /tmp
             - name: home
               mountPath: /home/runner
-          
+
           env:
             - name: TOOLS_PATH
               value: {{ .Values.sandbox.tools.path | default "/home/runner/tools" }}
@@ -144,7 +298,7 @@ spec:
               value: "json"
             - name: PYTHONPATH
               value: "{{ .Values.sandbox.tools.path | default "/home/runner/tools" }}:/home/runner"
-          
+
           # Extremely strict container security
           # OpenShift will assign runAsUser from allowed range
           securityContext:
@@ -156,17 +310,17 @@ spec:
             seccompProfile:
               type: RuntimeDefault
             readOnlyRootFilesystem: {{ .Values.sandbox.securityContext.readOnlyRootFilesystem | default true }}
-          
+
           resources:
             {{- toYaml .Values.sandbox.resources | nindent 12 }}
-          
+
           livenessProbe:
             httpGet:
               path: /health
               port: http
             initialDelaySeconds: 10
             periodSeconds: 10
-          
+
           readinessProbe:
             httpGet:
               path: /ready
