@@ -4,6 +4,19 @@
 
 A GitOps-based validated pattern for deploying secure, enterprise-grade MCP infrastructure on Red Hat OpenShift. This pattern provides a centralized gateway for multiple MCP (Model Context Protocol) servers with unified authentication, role-based access control (RBAC), and comprehensive audit logging.
 
+## Inspiration
+
+This pattern implements the architecture described in Anthropic's **[Code Execution with MCP: Building More Efficient Agents](https://www.anthropic.com/engineering/code-execution-with-mcp)** blog post.
+
+The key insight: instead of passing large datasets through the AI's context window (consuming hundreds of thousands of tokens), AI agents can **write code that executes in a secure sandbox**. Data flows between tools within the sandbox, and only the final results return to the AI—achieving **90-99% token savings** on data-intensive operations.
+
+This pattern extends that concept for enterprise environments by adding:
+- **GitOps-managed tools** - Security teams approve tools via pull requests
+- **OAuth 2.1 authentication** - Centralized identity via Keycloak
+- **Multi-tenant sandboxes** - Isolated execution environments on OpenShift
+- **Persistent state & skills** - AI agents can save checkpoints and reusable code patterns
+- **Progressive tool discovery** - Tools exposed as browsable files for on-demand loading
+
 ## What is MCP?
 
 The Model Context Protocol (MCP) is an open standard that enables AI assistants (like Cursor, Claude Desktop, or custom agents) to connect to external tools and data sources. MCP servers expose tools that AI can call to perform actions—querying databases, analyzing logs, calling APIs, or processing files.
@@ -55,7 +68,7 @@ This pattern implements an **enterprise MCP gateway** that sits between AI clien
 # 2. Create an API key (recommended)
 ./scripts/create-api-key.sh alice mcp-log-analyst never
 
-# 3. Add to Cursor (.cursor/mcp.json)
+# 3. Add to your AI (.your AI/mcp.json)
 {
   "mcpServers": {
     "secure-mcp-gateway": {
@@ -70,7 +83,7 @@ This pattern implements an **enterprise MCP gateway** that sits between AI clien
   }
 }
 
-# 4. Ask Cursor AI
+# 4. Ask Your AI
 "Use log_store to find all errors from the last hour"
 ```
 
@@ -135,7 +148,7 @@ This architecture delivers **98%+ token savings** on data-intensive workflows.
 
 ### 1. Production-Ready MCP Gateway
 - Full JSON-RPC 2.0 protocol implementation
-- Works with Cursor IDE and other MCP clients out of the box
+- Works with your AI IDE and other MCP clients out of the box
 - High availability (multiple replicas)
 - Health checks and monitoring
 
