@@ -42,7 +42,7 @@ podman --version  # Should be 4.3.0+
 
 Fork this repository to your own GitHub organization:
 
-1. Go to https://github.com/validatedpatterns/secure-mcp-code-gateway
+1. Go to https://github.com/gaurav-nelson/secure-mcp-code-gateway
 2. Click "Fork" button
 3. Select your organization
 
@@ -391,7 +391,7 @@ To upgrade to a new version:
 
 ```bash
 # Pull latest changes from upstream
-git remote add upstream https://github.com/validatedpatterns/secure-mcp-code-gateway.git
+git remote add upstream https://github.com/gaurav-nelson/secure-mcp-code-gateway.git
 git fetch upstream
 git merge upstream/main
 

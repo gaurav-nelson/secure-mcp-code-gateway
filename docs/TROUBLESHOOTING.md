@@ -831,7 +831,7 @@ tar -czf diagnostics.tar.gz diagnostics/
 
 ### Contact Support
 
-1. **GitHub Issues**: https://github.com/validatedpatterns/secure-mcp-code-gateway/issues
+1. **GitHub Issues**: https://github.com/gaurav-nelson/secure-mcp-code-gateway/issues
 2. **Community Forum**: https://groups.google.com/g/validatedpatterns
 3. **Documentation**: https://validatedpatterns.io/patterns/secure-mcp-code-gateway/
 

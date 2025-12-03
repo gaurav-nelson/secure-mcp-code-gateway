@@ -4,9 +4,9 @@ metadata_version: "1.0"
 name: secure-mcp-code-gateway
 pattern_version: "1.0"
 display_name: Secure MCP Code Gateway Pattern
-repo_url: https://github.com/validatedpatterns/secure-mcp-code-gateway
+repo_url: https://github.com/gaurav-nelson/secure-mcp-code-gateway
 docs_repo_url: https://github.com/validatedpatterns/docs
-issues_url: https://github.com/validatedpatterns/secure-mcp-code-gateway/issues
+issues_url: https://github.com/gaurav-nelson/secure-mcp-code-gateway/issues
 docs_url: https://validatedpatterns.io/patterns/secure-mcp-code-gateway/
 ci_url: https://validatedpatterns.io/ci/?pattern=secure-mcp-code-gateway
 # can be sandbox, tested or maintained

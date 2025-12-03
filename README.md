@@ -283,6 +283,12 @@ This allows agents to handle long-running tasks that would exceed single-request
 - **[Configuration Guide](docs/CONFIGURATION.md)** - Values files and customization options
 - **[Security & RBAC](docs/SECURITY-AND-RBAC.md)** - Authentication, authorization, and audit logging
 
+### Verification & Testing
+- **[Verification Guide](docs/VERIFICATION.md)** - Comprehensive feature verification and testing instructions
+
+### Operations
+- **[Day 2 Operations Guide](docs/DAY2-OPERATIONS.md)** - Monitoring, scaling, maintenance, and incident response
+
 ### Extending the Pattern
 - **[Extending the Pattern](docs/EXTENDING-THE-PATTERN.md)** - Add your own MCP servers and tool sets
 - **[Troubleshooting](docs/TROUBLESHOOTING.md)** - Common issues and solutions
@@ -472,7 +478,7 @@ API keys:
 
 ## Support
 
-- **Issues**: [GitHub Issues](https://github.com/validatedpatterns/secure-mcp-code-gateway/issues)
+- **Issues**: [GitHub Issues](https://github.com/gaurav-nelson/secure-mcp-code-gateway/issues)
 - **Community**: [Validated Patterns Forum](https://groups.google.com/g/validatedpatterns)
 - **Documentation**: [validatedpatterns.io](https://validatedpatterns.io/patterns/secure-mcp-code-gateway/)
 
