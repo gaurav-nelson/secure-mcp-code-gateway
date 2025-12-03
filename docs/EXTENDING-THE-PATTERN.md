@@ -21,6 +21,19 @@ Existing:                      You Add:
 
 **Key Point**: You don't deploy a new gateway! Just add a sandbox and update the gateway configuration.
 
+## Available Core Tools
+
+Before creating custom tools, note that several core tools are available in the log-analysis sandbox that you can reuse:
+
+| Tool | Purpose |
+|------|---------|
+| `execute_code` | Execute Python code safely in the sandbox |
+| `workspace` | Persistent file storage (checkpoints, state) |
+| `skills` | Save and run reusable code patterns |
+| `tool_discovery` | Browse and discover available tools |
+
+These implement the [Code Execution with MCP](https://www.anthropic.com/engineering/code-execution-with-mcp) pattern from Anthropic.
+
 ## Quick Start: Add a New Tool Set
 
 ### Step 1: Create Your Tools
@@ -42,12 +55,12 @@ Database Tools - Approved for database-sandbox MCP Server
 def execute_query(database: str, query: str, limit: int = 100):
     """
     Execute a SQL query against a database.
-    
+
     Args:
         database: Database name (e.g., "customers")
         query: SQL query to execute
         limit: Maximum rows to return (default: 100)
-    
+
     Returns:
         Query results as list of dictionaries
     """
@@ -58,11 +71,11 @@ def execute_query(database: str, query: str, limit: int = 100):
 def get_table_schema(database: str, table: str):
     """
     Get schema information for a table.
-    
+
     Args:
         database: Database name
         table: Table name
-    
+
     Returns:
         Dictionary with column names, types, and constraints
     """
@@ -103,20 +116,20 @@ sandbox:
   name: mcp-database-sandbox
   namespace: mcp-database
   replicas: 1
-  
+
   image:
     repository: registry.access.redhat.com/ubi9/python-311
     tag: latest
     pullPolicy: Always
-  
+
   tools:
     path: /home/runner/tools
     sourcePath: tools/database  # Your tools directory
-  
+
   service:
     port: 8080
     targetPort: 8080
-  
+
   resources:
     requests:
       memory: "128Mi"
@@ -124,7 +137,7 @@ sandbox:
     limits:
       memory: "512Mi"
       cpu: "500m"
-  
+
   securityContext:
     allowPrivilegeEscalation: false
     runAsNonRoot: true
@@ -134,7 +147,7 @@ sandbox:
     seccompProfile:
       type: RuntimeDefault
     readOnlyRootFilesystem: true
-  
+
   networkPolicy:
     enabled: true
     allowFromGateway: true
@@ -161,7 +174,7 @@ gateway:
           description: "Search and analyze logs efficiently"
         - name: "privacy"
           description: "Scrub PII from text and logs"
-    
+
     # Your new tool set
     database:
       enabled: true
@@ -185,10 +198,10 @@ clusterGroup:
     - mcp-shared
     - mcp-log-analysis
     - mcp-database  # Add your namespace
-  
+
   applications:
     # Existing applications...
-    
+
     mcp-database-sandbox:
       name: mcp-database-sandbox
       namespace: openshift-gitops
@@ -297,20 +310,20 @@ class SandboxHandler(BaseHTTPRequestHandler):
         content_length = int(self.headers['Content-Length'])
         request_body = self.rfile.read(content_length)
         request = json.loads(request_body)
-        
+
         tool_name = request.get('tool')
         arguments = request.get('arguments', {})
-        
+
         try:
             # Load tool module dynamically
             module = importlib.import_module(f'tools.{tool_name}')
-            
+
             # Get function from module
             func = getattr(module, tool_name)
-            
+
             # Execute tool
             result = func(**arguments)
-            
+
             # Return result
             response = {
                 'status': 'success',
@@ -323,11 +336,11 @@ class SandboxHandler(BaseHTTPRequestHandler):
                 'error': str(e)
             }
             self.send_response(500)
-        
+
         self.send_header('Content-Type', 'application/json')
         self.end_headers()
         self.wfile.write(json.dumps(response).encode())
-    
+
     def do_GET(self):
         """Health check endpoint."""
         if self.path == '/health':
@@ -409,7 +422,7 @@ spec:
       ports:
         - protocol: UDP
           port: 53
-    
+
     # Allow access to specific database
     - to:
         - namespaceSelector:
@@ -482,7 +495,7 @@ def cache_query_result(query: str, result: dict):
     """Cache query results to persistent storage."""
     import json
     cache_path = "/data/cache/query_cache.json"
-    
+
     # Write to persistent volume
     with open(cache_path, 'w') as f:
         json.dump({query: result}, f)
@@ -504,17 +517,17 @@ Example:
 def my_tool(param: str, limit: int = 100) -> dict:
     """
     Short description for AI assistant.
-    
+
     Detailed explanation of what the tool does, when to use it,
     and what results to expect.
-    
+
     Args:
         param: Description of parameter
         limit: Maximum results (default: 100, max: 1000)
-    
+
     Returns:
         Dictionary with results
-    
+
     Raises:
         ValueError: If param is invalid
         RuntimeError: If operation fails
@@ -522,14 +535,14 @@ def my_tool(param: str, limit: int = 100) -> dict:
     # Validate inputs
     if not param:
         raise ValueError("param cannot be empty")
-    
+
     if limit > 1000:
         limit = 1000  # Enforce maximum
-    
+
     try:
         # Your implementation
         result = do_something(param)
-        
+
         # Limit output size
         return result[:limit]
     except Exception as e:
@@ -607,10 +620,10 @@ import requests
 def list_repositories(org: str, limit: int = 10) -> list:
     """List repositories for a GitHub organization."""
     url = f"https://api.github.com/orgs/{org}/repos"
-    
+
     response = requests.get(url, params={"per_page": limit})
     response.raise_for_status()
-    
+
     repos = response.json()
     return [{"name": r["name"], "stars": r["stargazers_count"]} for r in repos]
 ```
@@ -631,13 +644,13 @@ def execute_query(database: str, query: str, limit: int = 100) -> list:
         user="readonly_user",
         password=os.getenv("DB_PASSWORD")
     )
-    
+
     cursor = conn.cursor()
     cursor.execute(f"{query} LIMIT {limit}")
-    
+
     results = cursor.fetchall()
     conn.close()
-    
+
     return [dict(row) for row in results]
 ```
 
@@ -650,13 +663,13 @@ Process files from persistent storage:
 def parse_document(filename: str) -> dict:
     """Parse document and return structured data."""
     filepath = f"/data/uploads/{filename}"
-    
+
     if not os.path.exists(filepath):
         raise FileNotFoundError(f"Document {filename} not found")
-    
+
     # Parse document (PDF, DOCX, etc.)
     content = extract_text(filepath)
-    
+
     return {
         "filename": filename,
         "word_count": len(content.split()),
@@ -674,7 +687,7 @@ def get_metrics_summary(service: str, hours: int = 24) -> dict:
     """Aggregate metrics for a service."""
     # Process large dataset locally
     metrics = load_metrics(service, hours)
-    
+
     # Return only summary, not raw data
     return {
         "service": service,

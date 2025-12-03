@@ -2,6 +2,8 @@
 
 This document explains how the Secure MCP Code Gateway Pattern achieves dramatic token savings and performance improvements through its architectural design.
 
+> **Inspiration**: This pattern implements the architecture described in Anthropic's **[Code Execution with MCP: Building More Efficient Agents](https://www.anthropic.com/engineering/code-execution-with-mcp)** blog post. The core insight: AI agents can write code that executes in a secure sandbox, with data flowing between tools without passing through the AI's context window.
+
 ---
 
 ## The Token Consumption Problem

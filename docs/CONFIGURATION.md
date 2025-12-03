@@ -226,6 +226,14 @@ gateway:
           description: "Search and analyze logs efficiently"
         - name: "privacy"
           description: "Scrub PII from text and logs"
+        - name: "execute_code"
+          description: "Execute Python code in sandbox with access to all tools"
+        - name: "workspace"
+          description: "Persistent file storage for checkpoints and state"
+        - name: "skills"
+          description: "Save, list, and run reusable code patterns"
+        - name: "tool_discovery"
+          description: "Browse and discover available tools via filesystem"
 
     # Example 2: Custom Tool Set (Disabled)
     my-service:

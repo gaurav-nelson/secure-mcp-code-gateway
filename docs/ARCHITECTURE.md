@@ -166,6 +166,13 @@ Roles:
 **Tools Provided**:
 - `log_store` - Search and analyze logs efficiently
 - `privacy` - Scrub PII from text and logs
+- `execute_code` - Execute Python code safely in sandbox (enables Code Mode)
+- `workspace` - Persistent file storage for checkpoints and state
+- `skills` - Save and run reusable code patterns
+- `tool_discovery` - Browse and discover available tools via filesystem
+
+**Code Execution Pattern**:
+This sandbox implements the architecture described in [Anthropic's Code Execution with MCP](https://www.anthropic.com/engineering/code-execution-with-mcp) blog post. AI agents can write Python code that executes in the sandbox, with data flowing between tools without passing through the AI's context window.
 
 **Security Context**:
 ```yaml

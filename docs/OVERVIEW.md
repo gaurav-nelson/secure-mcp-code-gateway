@@ -27,7 +27,10 @@ AI coding assistants are powerful, but they have limitations:
 
 This pattern solves these problems by providing:
 
-- **Code Mode**: AI agents call approved APIs instead of processing everything in the LLM
+- **Code Execution Mode**: AI agents write Python code that runs in secure sandboxes, achieving 90-99% token savings
+- **State Persistence**: Save checkpoints and intermediate results across sessions
+- **Skills System**: AI agents can save working code as reusable patterns
+- **Progressive Tool Discovery**: Tools exposed as browsable files, loaded on-demand
 - **Centralized Security**: Single authentication system for all MCP servers
 - **Audit Logging**: Complete visibility into all AI agent actions
 - **GitOps Governance**: All tools managed via Git with security review
@@ -190,6 +193,10 @@ This pattern deploys:
 3. **Log Analysis Sandbox** (Example)
    - Tool: `log_store` - Search and analyze logs
    - Tool: `privacy` - Scrub PII from text
+   - Tool: `execute_code` - Execute Python code safely in sandbox
+   - Tool: `workspace` - Persistent storage for checkpoints and state
+   - Tool: `skills` - Save and run reusable code patterns
+   - Tool: `tool_discovery` - Browse available tools via filesystem
    - Secure execution environment
    - Network isolation
 
