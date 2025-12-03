@@ -173,7 +173,7 @@ keycloak:
 
 **⚠️ SECURITY WARNING**: Never use default passwords like `admin` in any environment. Always generate strong, random passwords.
 
-Or use the pre-configured `values-hub-sandbox.yaml`.
+For Developer Sandbox deployments, create your own values override file based on the direct deployment configuration above.
 
 ### Manual Deployment
 
