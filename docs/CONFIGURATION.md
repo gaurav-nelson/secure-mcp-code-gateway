@@ -219,7 +219,7 @@ gateway:
     log-analysis:
       enabled: true
       description: "Efficient log processing and analysis tools"
-      sandboxUrl: "http://mcp-log-analysis-sandbox.mcp-shared.svc.cluster.local:8080"
+      sandboxUrl: "http://mcp-log-analysis-sandbox.mcp-log-analysis.svc.cluster.local:8080"
       requiredRole: "mcp-log-analyst"
       tools:
         - name: "log_store"
@@ -239,7 +239,7 @@ gateway:
     my-service:
       enabled: false
       description: "My custom service tools"
-      sandboxUrl: "http://mcp-my-service-sandbox.mcp-shared.svc.cluster.local:8080"
+      sandboxUrl: "http://mcp-my-service-sandbox.mcp-my-service.svc.cluster.local:8080"
       requiredRole: "mcp-my-service-user"
       tools:
         - name: "my_tool"
@@ -252,7 +252,7 @@ gateway:
 |-----------|----------|-------------|
 | `enabled` | Yes | Enable or disable this tool set |
 | `description` | Yes | Human-readable description |
-| `sandboxUrl` | Yes | Full URL to sandbox service |
+| `sandboxUrl` | Yes | Full URL to sandbox service. Format: `http://<sandbox-name>.<namespace>.svc.cluster.local:8080` |
 | `requiredRole` | Yes | Keycloak role required for access |
 | `tools` | Yes | List of tools in this set |
 | `tools[].name` | Yes | Tool function name |

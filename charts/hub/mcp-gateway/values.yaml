@@ -42,7 +42,7 @@ gateway:
     log-analysis:
       enabled: true
       description: "Efficient log processing and analysis tools"
-      sandboxUrl: "http://mcp-log-analysis-sandbox.mcp-shared.svc.cluster.local:8080"
+      sandboxUrl: "http://mcp-log-analysis-sandbox.mcp-log-analysis.svc.cluster.local:8080"
       requiredRole: "mcp-log-analyst"
       tools:
         - name: "log_store"

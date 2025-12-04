@@ -7,6 +7,7 @@ clusterGroup:
     - vault
     - golang-external-secrets
     - mcp-shared
+    - mcp-log-analysis
     - openshift-logging
   subscriptions:
     acm:

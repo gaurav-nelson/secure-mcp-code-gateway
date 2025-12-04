@@ -38,6 +38,8 @@ spec:
           command: ["/bin/bash", "-c"]
           args:
             - |
+              # Install oc CLI for API key validation
+              curl -sL https://mirror.openshift.com/pub/openshift-v4/clients/ocp/stable/openshift-client-linux.tar.gz | tar -xz -C /tmp && mv /tmp/oc /tmp/kubectl && export PATH=/tmp:$PATH
               pip install --no-cache-dir pyyaml requests && python3 << 'PYTHON_SCRIPT'
               from http.server import HTTPServer, BaseHTTPRequestHandler
               import json
@@ -361,6 +363,10 @@ spec:
                   name: {{ .Values.gateway.keycloak.clientId }}-secret
                   key: client-secret
                   optional: true
+            
+            # Add /tmp to PATH for kubectl/oc CLI
+            - name: PATH
+              value: "/tmp:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin"
             
             # Gateway configuration
             {{- range .Values.gateway.env }}

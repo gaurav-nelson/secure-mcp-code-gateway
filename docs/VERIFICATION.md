@@ -756,10 +756,10 @@ curl -k -s -X POST "https://$GATEWAY_URL/" \
 
 ```bash
 # Check that network policy exists
-oc get networkpolicy -n mcp-shared
+oc get networkpolicy -n mcp-log-analysis
 
 # Verify sandbox can only receive traffic from gateway
-oc describe networkpolicy mcp-log-analysis-sandbox -n mcp-shared
+oc describe networkpolicy mcp-log-analysis-sandbox -n mcp-log-analysis
 ```
 
 **Expected**: NetworkPolicy restricting ingress to gateway only.
@@ -768,7 +768,7 @@ oc describe networkpolicy mcp-log-analysis-sandbox -n mcp-shared
 
 ```bash
 # Check sandbox pod security context
-oc get pod -n mcp-shared -l app=mcp-log-analysis-sandbox -o yaml | grep -A 20 securityContext
+oc get pod -n mcp-log-analysis -l app=mcp-log-analysis-sandbox -o yaml | grep -A 20 securityContext
 ```
 
 **Expected**:
@@ -965,12 +965,12 @@ oc rollout restart deployment/mcp-gateway -n mcp-shared
 
 ```bash
 # Check sandbox pods
-oc get pods -n mcp-shared -l app=mcp-log-analysis-sandbox
-oc logs -n mcp-shared -l app=mcp-log-analysis-sandbox --tail=50
+oc get pods -n mcp-log-analysis -l app=mcp-log-analysis-sandbox
+oc logs -n mcp-log-analysis -l app=mcp-log-analysis-sandbox --tail=50
 
 # Test internal connectivity
 oc exec -n mcp-shared deployment/mcp-gateway -- \
-  curl -s http://mcp-log-analysis-sandbox.mcp-shared.svc:8080/
+  curl -s http://mcp-log-analysis-sandbox.mcp-log-analysis.svc:8080/
 ```
 
 #### 3. Authentication Failures
@@ -988,11 +988,11 @@ oc get pods -n mcp-shared | grep keycloak
 
 ```bash
 # Check sandbox tools are mounted
-oc exec -n mcp-shared deployment/mcp-log-analysis-sandbox -- \
+oc exec -n mcp-log-analysis deployment/mcp-log-analysis-sandbox -- \
   ls -la /home/runner/tools/
 
 # Verify Python environment
-oc exec -n mcp-shared deployment/mcp-log-analysis-sandbox -- \
+oc exec -n mcp-log-analysis deployment/mcp-log-analysis-sandbox -- \
   python3 -c "import sys; print(sys.path)"
 ```
 
@@ -1000,10 +1000,10 @@ oc exec -n mcp-shared deployment/mcp-log-analysis-sandbox -- \
 
 ```bash
 # Check PVC status
-oc get pvc -n mcp-shared
+oc get pvc -n mcp-log-analysis
 
 # Verify workspace mount
-oc exec -n mcp-shared deployment/mcp-log-analysis-sandbox -- \
+oc exec -n mcp-log-analysis deployment/mcp-log-analysis-sandbox -- \
   ls -la /workspace/
 ```
 

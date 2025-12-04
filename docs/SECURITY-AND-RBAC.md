@@ -260,7 +260,7 @@ toolSets:
   database:
     enabled: true
     description: "Database management tools"
-    sandboxUrl: "http://mcp-database-sandbox.mcp-shared.svc.cluster.local:8080"
+    sandboxUrl: "http://mcp-database-sandbox.mcp-database.svc.cluster.local:8080"
     requiredRole: "mcp-database-admin"  # New role
     tools:
       - name: "postgres_query"

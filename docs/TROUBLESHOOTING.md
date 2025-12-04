@@ -500,13 +500,13 @@ ERROR: Failed to call tool: Connection refused to sandbox
 ```bash
 # Test connectivity from gateway
 oc exec -n mcp-shared deployment/mcp-gateway -- \
-  curl -v http://mcp-log-analysis-sandbox.mcp-shared.svc:8080/health
+  curl -v http://mcp-log-analysis-sandbox.mcp-log-analysis.svc:8080/health
 
 # Check sandbox service
-oc get service mcp-log-analysis-sandbox -n mcp-shared
+oc get service mcp-log-analysis-sandbox -n mcp-log-analysis
 
 # Check sandbox endpoints
-oc get endpoints mcp-log-analysis-sandbox -n mcp-shared
+oc get endpoints mcp-log-analysis-sandbox -n mcp-log-analysis
 
 # Check NetworkPolicy
 oc get networkpolicy -n mcp-log-analysis
@@ -521,8 +521,8 @@ oc get pods -n mcp-log-analysis
 
 2. **Check service configuration**:
 ```bash
-# Service should be in mcp-shared namespace for gateway to access
-oc get service -n mcp-shared | grep sandbox
+# Service should be in mcp-log-analysis namespace
+oc get service -n mcp-log-analysis | grep sandbox
 ```
 
 3. **Check NetworkPolicy allows traffic**:

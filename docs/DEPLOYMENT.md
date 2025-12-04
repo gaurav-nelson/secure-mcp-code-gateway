@@ -357,11 +357,11 @@ oc get pods -n mcp-shared -l app=keycloak
 oc get pods -n mcp-log-analysis
 
 # Check service
-oc get service -n mcp-shared mcp-log-analysis-sandbox
+oc get service -n mcp-log-analysis mcp-log-analysis-sandbox
 
 # Test connectivity from gateway
 oc exec -n mcp-shared deployment/mcp-gateway -- \
-  curl -v http://mcp-log-analysis-sandbox.mcp-shared.svc:8080/health
+  curl -v http://mcp-log-analysis-sandbox.mcp-log-analysis.svc:8080/health
 ```
 
 See [Troubleshooting Guide](TROUBLESHOOTING.md) for more issues and solutions.

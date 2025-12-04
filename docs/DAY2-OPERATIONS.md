@@ -357,7 +357,7 @@ curl -k "https://$KEYCLOAK_URL/health/ready"
 ```bash
 # From within the cluster
 oc exec -n mcp-shared deployment/mcp-gateway -- \
-  curl -s http://mcp-log-analysis-sandbox.mcp-shared.svc:8080/health
+  curl -s http://mcp-log-analysis-sandbox.mcp-log-analysis.svc:8080/health
 ```
 
 ---
@@ -655,7 +655,7 @@ oc scale deployment mcp-gateway -n mcp-shared --replicas=5
 
 ```bash
 # Scale sandbox for high load
-oc scale deployment mcp-log-analysis-sandbox -n mcp-shared --replicas=3
+oc scale deployment mcp-log-analysis-sandbox -n mcp-log-analysis --replicas=3
 ```
 
 ### Horizontal Pod Autoscaler
@@ -1388,13 +1388,13 @@ oc get all -n mcp-shared
 oc logs -f -n mcp-shared -l app=mcp-gateway
 
 # Sandbox logs
-oc logs -f -n mcp-shared -l app=mcp-log-analysis-sandbox
+oc logs -f -n mcp-log-analysis -l app=mcp-log-analysis-sandbox
 
 # Restart gateway
 oc rollout restart deployment/mcp-gateway -n mcp-shared
 
 # Restart sandbox
-oc rollout restart deployment/mcp-log-analysis-sandbox -n mcp-shared
+oc rollout restart deployment/mcp-log-analysis-sandbox -n mcp-log-analysis
 
 # Force ArgoCD sync
 oc patch application mcp-gateway -n openshift-gitops \

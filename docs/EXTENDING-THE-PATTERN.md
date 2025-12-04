@@ -167,7 +167,7 @@ gateway:
     log-analysis:
       enabled: true
       description: "Efficient log processing and analysis tools"
-      sandboxUrl: "http://mcp-log-analysis-sandbox.mcp-shared.svc.cluster.local:8080"
+      sandboxUrl: "http://mcp-log-analysis-sandbox.mcp-log-analysis.svc.cluster.local:8080"
       requiredRole: "mcp-log-analyst"
       tools:
         - name: "log_store"
@@ -179,7 +179,7 @@ gateway:
     database:
       enabled: true
       description: "Database query and management tools"
-      sandboxUrl: "http://mcp-database-sandbox.mcp-shared.svc.cluster.local:8080"
+      sandboxUrl: "http://mcp-database-sandbox.mcp-database.svc.cluster.local:8080"
       requiredRole: "mcp-dba"
       tools:
         - name: "execute_query"
@@ -197,7 +197,7 @@ clusterGroup:
   namespaces:
     - mcp-shared
     - mcp-log-analysis
-    - mcp-database  # Add your namespace
+    - mcp-database  # Add namespace for your new sandbox
 
   applications:
     # Existing applications...
@@ -241,7 +241,7 @@ oc get pods -n mcp-database
 
 # Check gateway can reach sandbox
 oc exec -n mcp-shared deployment/mcp-gateway -- \
-  curl -v http://mcp-database-sandbox.mcp-shared.svc:8080/health
+  curl -v http://mcp-database-sandbox.mcp-database.svc:8080/health
 
 # Test via gateway
 curl -k -X POST https://your-gateway-url/ \
@@ -718,7 +718,7 @@ oc get events -n mcp-database --sort-by='.lastTimestamp'
 ```bash
 # Test connectivity
 oc exec -n mcp-shared deployment/mcp-gateway -- \
-  curl -v http://mcp-database-sandbox.mcp-shared.svc:8080/health
+  curl -v http://mcp-database-sandbox.mcp-database.svc:8080/health
 
 # Check service
 oc get service -n mcp-shared mcp-database-sandbox
